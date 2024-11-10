@@ -29,7 +29,7 @@ def load_model(model_name: str, alias: str):
 
     try:
         # Load the trained model from MLflow
-        mlflow.set_tracking_uri('http://mlflow:5000')
+        mlflow.set_tracking_uri('http://mlflow:5001')
         client_mlflow = mlflow.MlflowClient()
 
         model_data_mlflow = client_mlflow.get_model_version_by_alias(model_name, alias)
@@ -80,7 +80,7 @@ def check_model():
         model_name = "heart_disease_model_prod"
         alias = "champion"
 
-        mlflow.set_tracking_uri('http://mlflow:5000')
+        mlflow.set_tracking_uri('http://mlflow:5001')
         client = mlflow.MlflowClient()
 
         # Check in the model registry if the version of the champion has changed
