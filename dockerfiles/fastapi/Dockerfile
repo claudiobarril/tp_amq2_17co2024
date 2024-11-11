@@ -21,6 +21,3 @@ COPY . .
 
 # Expose the desired port
 EXPOSE 8800
-
-# Start the app (replace this with the actual start command)
-CMD ["python", "fastapp.py"]
