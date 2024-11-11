@@ -1,11 +1,10 @@
 FROM python:3.12-slim
 
-# Copy your application code
-COPY ./poetry.lock .
-COPY ./pyproject.toml .
-COPY ./tp_amq2_17co2024/ ./tp_amq2_17co2024/
-
 WORKDIR /app
+# Copy your application code
+COPY ../../poetry.lock .
+COPY ../../pyproject.toml .
+COPY ../../tp_amq2_17co2024/ ./tp_amq2_17co2024/
 
 RUN apt-get update && apt-get install -y \
     gcc \
