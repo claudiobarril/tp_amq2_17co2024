@@ -1,22 +1,20 @@
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 WORKDIR /app
-# Copy your application code
+
+# Copy files
+COPY . .
 COPY ../../poetry.lock .
 COPY ../../pyproject.toml .
-COPY ../../tp_amq2_17co2024/ ./tp_amq2_17co2024/
+COPY ../../tp_amq2_17co2024/ .
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get clean && apt-get update && apt-get install -y \
     gcc \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
 RUN pip install poetry
-
 RUN poetry config virtualenvs.create false && poetry install
 
-COPY . .
-
-# Expose the desired port
 EXPOSE 8800

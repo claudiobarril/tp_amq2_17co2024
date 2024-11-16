@@ -50,7 +50,6 @@ def predict(
     """
 
     features_df = pd.DataFrame([features])
-    # Make the prediction using the trained model
     prediction = loader.model_ml.predict(features_df)
 
     # Convert prediction result into string format

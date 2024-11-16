@@ -1,125 +1,98 @@
-import json
-import pickle
-import boto3
-import mlflow
-
-import numpy as np
-import pandas as pd
-
 from typing import Literal
-from fastapi import FastAPI, Body, BackgroundTasks
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
-from typing_extensions import Annotated
 
-# TODO: change all of it
+
 class ModelInput(BaseModel):
     """
-    Input schema for the cards prediction model.
+    Input schema for the car dataset.
 
-    This class defines the input fields required by the heart disease prediction model along with their descriptions
+    This class defines the input fields required for car data along with their descriptions
     and validation constraints.
 
-    :param age: Age of the patient (0 to 150).
-    :param sex: Sex of the patient. 1: male; 0: female.
-    :param cp: Chest pain type. 1: typical angina; 2: atypical angina; 3: non-anginal pain; 4: asymptomatic.
-    :param trestbps: Resting blood pressure in mm Hg on admission to the hospital (90 to 220).
-    :param chol: Serum cholestoral in mg/dl (110 to 600).
-    :param fbs: Fasting blood sugar. 1: >120 mg/dl; 0: <120 mg/dl.
-    :param restecg: Resting electrocardiographic results. 0: normal; 1: having ST-T wave abnormality; 2: showing
-                    probable or definite left ventricular hypertrophy.
-    :param thalach: Maximum heart rate achieved (beats per minute) (50 to 210).
-    :param exang: Exercise induced angina. 1: yes; 0: no.
-    :param oldpeak: ST depression induced by exercise relative to rest (0.0 to 7.0).
-    :param slope: The slope of the peak exercise ST segment. 1: upsloping; 2: flat; 3: downsloping.
-    :param ca: Number of major vessels colored by flourosopy (0 to 3).
-    :param thal: Thalassemia disease. 3: normal; 6: fixed defect; 7: reversable defect.
+    :param brand: Brand of the car.
+    :param model: Model of the car.
+    :param year: year of the sell.
+    :param km_driven: Total kilometers driven by the car.
+    :param fuel: Type of fuel used by the car.
+    :param seller_type: Type of seller. Can be 'individual', 'dealer', or 'trustmark dealer'.
+    :param transmission: Type of transmission. Can be 'manual' or 'automatic'.
+    :param owner: Ownership type. Can be 'first', 'second', 'third', or 'fourth & above'.
+    :param mileage: Mileage of the car in kmpl.
+    :param engine: Engine capacity in cc.
+    :param max_power: Maximum power of the car in bhp.
+    :param torque_peak_power: Torque peak power of the car.
+    :param torque_peak_speed: Torque peak speed of the car in rpm.
+    :param seats: Number of seats in the car.
     """
 
-    age: int = Field(
-        description="Age of the patient",
+    brand: str = Field(description="Brand of the car")
+    model: str = Field(description="Model of the car")
+    year: int = Field(
+        description="Year of the sell",
+        ge=1886,  # First car ever made
+        le=2024,  # Current year
+    )
+    km_driven: int = Field(
+        description="Total kilometers driven by the car",
         ge=0,
-        le=150,
     )
-    sex: int = Field(
-        description="Sex of the patient. 1: male; 0: female",
-        ge=0,
-        le=1,
+    fuel: Literal["petrol", "diesel", "cng", "lpg", "electric"] = Field(
+        description="Type of fuel used by the car"
     )
-    cp: int = Field(
-        description="Chest pain type. 1: typical angina; 2: atypical angina, 3: non-anginal pain; 4: asymptomatic",
-        ge=1,
-        le=4,
+    seller_type: Literal["individual", "dealer", "trustmark dealer"] = Field(
+        description="Type of seller"
     )
-    trestbps: float = Field(
-        description="Resting blood pressure in mm Hg on admission to the hospital",
-        ge=90,
-        le=220,
+    transmission: Literal["manual", "automatic"] = Field(
+        description="Type of transmission"
     )
-    chol: float = Field(
-        description="Serum cholestoral in mg/dl",
-        ge=110,
-        le=600,
+    owner: Literal["first", "second", "third", "fourth & above"] = Field(
+        description="Ownership type"
     )
-    fbs: int = Field(
-        description="Fasting blood sugar. 1: >120 mg/dl; 0: <120 mg/dl",
-        ge=0,
-        le=1,
-    )
-    restecg: int = Field(
-        description="Resting electrocardiographic results. 0: normal; 1:  having ST-T wave abnormality (T wave "
-                    "inversions and/or ST elevation or depression of > 0.05 mV), 2: showing probable or definite "
-                    "left ventricular hypertrophy by Estes' criteria",
-        ge=0,
-        le=2,
-    )
-    thalach: float = Field(
-        description="Maximum heart rate achieved (beats per minute)",
-        ge=50,
-        le=210,
-    )
-    exang: int = Field(
-        description="Exercise induced angina. 1: yes; 0: no",
-        ge=0,
-        le=1,
-    )
-    oldpeak: float = Field(
-        description="ST depression induced by exercise relative to rest",
+    mileage: float = Field(
+        description="Mileage of the car in kmpl",
         ge=0.0,
-        le=7.0,
     )
-    slope: int = Field(
-        description="The slope of the peak exercise ST segment .1: upsloping; 2: flat, 3: downsloping",
-        ge=1,
-        le=3,
+    engine: int = Field(
+        description="Engine capacity in cc",
+        ge=50,  # Smallest engine cars
+        le=10000,  # Largest engine in consumer cars
     )
-    ca: int = Field(
-        description="Number of major vessels colored by flourosopy",
+    max_power: float = Field(
+        description="Maximum power of the car in bhp",
+        ge=0.0,
+    )
+    torque_peak_power: float = Field(
+        description="Torque peak power of the car",
+        ge=0.0,
+    )
+    torque_peak_speed: int = Field(
+        description="Torque peak speed of the car in rpm",
         ge=0,
-        le=3,
     )
-    thal: Literal[3, 6, 7] = Field(
-        description="Thalassemia disease. 3: normal; 6: fixed defect; 7: reversable defect",
+    seats: int = Field(
+        description="Number of seats in the car",
+        ge=2,
+        le=12,  # Typical range for cars
     )
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "age": 67,
-                    "sex": 1,
-                    "cp": 4,
-                    "trestbps": 160.0,
-                    "chol": 286.0,
-                    "fbs": 0,
-                    "restecg": 2,
-                    "thalach": 108.0,
-                    "exang": 1,
-                    "oldpeak": 1.5,
-                    "slope": 2,
-                    "ca": 3,
-                    "thal": 3,
+                    "brand": "Toyota",
+                    "model": "Corolla",
+                    "year": 2020,
+                    "km_driven": 15000,
+                    "fuel": "petrol",
+                    "seller_type": "dealer",
+                    "transmission": "manual",
+                    "owner": "first",
+                    "mileage": 16.7,
+                    "engine": 1800,
+                    "max_power": 140.0,
+                    "torque_peak_power": 170.0,
+                    "torque_peak_speed": 4000,
+                    "seats": 5,
                 }
             ]
         }
