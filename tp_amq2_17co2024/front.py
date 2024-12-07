@@ -69,7 +69,7 @@ if submitted:
         response = requests.post(backend_url, json={"features": payload})
         if response.status_code == 200:
             result = response.json()
-            st.success(f"💰 El precio predicho es: **${result['output']:.2f}**")
+            st.success(f"💰 El precio estimado es: **${result['output']:.2f}**")
         else:
             st.error(f"❌ Error en la predicción: {response.json().get('detail')}")
     except Exception as e:
