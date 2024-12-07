@@ -6,22 +6,31 @@ import mlflow
 import numpy as np
 import pandas as pd
 
-from typing import Literal
 from fastapi import FastAPI, Body, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 
 from models.model_input import ModelInput
 from models.model_loader import ModelLoader
 from models.model_output import ModelOutput
 from pipeline_ import final_pipeline
-
+from joblib import load
+from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+from schemas import ModelInput, ModelOutput
 # Load the model before start
 loader = ModelLoader("best_xgboost_model", "cars_best_model")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite solicitudes desde cualquier origen (puedes restringirlo a dominios específicos)
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos los métodos (GET, POST, etc.)
+    allow_headers=["*"],  # Permite todos los headers
+)
 
 
 @app.get("/")
@@ -34,8 +43,15 @@ async def read_root():
     return JSONResponse(content=jsonable_encoder({"message": "Welcome to Cards Price Predictor API"}))
 
 
+final_pipeline = load('../models/final_pipeline.joblib')
+
+@app.on_event("startup")
+def startup_event():
+    loader.load_model()
+
+
 @app.post("/predict/", response_model=ModelOutput)
-def predict(
+async def predict(
     features: Annotated[
         ModelInput,
         Body(embed=True),
@@ -45,38 +61,31 @@ def predict(
     """
     Endpoint for predicting car price.
 
-    This endpoint receives features related to a used car and predicts the price using a trained model.
-    It returns the prediction result in float format.
+    Este endpoint recibe las características de un auto usado y predice su precio utilizando un modelo entrenado.
     """
+    # Verificar si el modelo necesita ser actualizado en segundo plano
+    background_tasks.add_task(loader.check_model)
 
-    features_df = pd.DataFrame([features])
-    prediction = loader.model_ml.predict(features_df)
+    # Convertir el input a DataFrame
+    features_df = pd.DataFrame([features.dict()])
 
-    # Convert prediction result into string format
-    str_pred = "Healthy patient"
-    if prediction[0] > 0:
-        str_pred = "Heart disease detected"
+    # Procesar las features con el pipeline
+    features_processed = final_pipeline.transform(features_df)
 
-    # Check if the model has changed asynchronously
-    background_tasks.add_task(loader.load_model)
+    # Realizar la predicción en un hilo separado para no bloquear el bucle de eventos
+    try:
+        prediction = await asyncio.to_thread(loader.model_ml.predict, features_processed)
+    except asyncio.CancelledError:
+        print("La tarea fue cancelada.")
+        raise
 
-    features = pd.DataFrame({
-        'name': ['Honda City 1.5 GXI'],
-        'year': [2004],
-        'km_driven': [110000],
-        'fuel': ['Petrol'],
-        'seller_type': ['Individual'],
-        'transmission': ['Manual'],
-        'owner': ['Third Owner'],
-        'mileage': ['12.8 kmpl'],
-        'engine': ['1493 CC'],
-        'max_power': ['100 bhp'],
-        'torque': ['113.1kgm@ 4600rpm'],
-        'seats': [5]
-    })
-    features_processed = final_pipeline.transform(features)
-    prediction = loader.model_ml.predict(features_processed)
     y_pred = np.exp(prediction)
 
-    # Return the prediction result
-    return ModelOutput(output=y_pred[0])
+    # Retornar el resultado
+    return ModelOutput(output=float(y_pred[0]))
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    print("Cerrando la aplicación. Cancelando tareas pendientes...")
+
