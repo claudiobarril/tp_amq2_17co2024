@@ -15,8 +15,10 @@ default_args = {
     'schedule_interval': None,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=5),
-    'dagrun_timeout': datetime.timedelta(minutes=15)
+    'dagrun_timeout': datetime.timedelta(minutes=15),
+    'catchup': False,  # Evitar trabajos pendientes
 }
+
 
 @dag(
     dag_id="process_lt_cars_data",
@@ -94,7 +96,6 @@ def process_lt_cars_data():
 
         wr.s3.to_csv(df=X_train_processed, path="s3://data/final/train/cars_X_train_processed.csv", index=False)
         wr.s3.to_csv(df=X_test_processed, path="s3://data/final/test/cars_X_test_processed.csv", index=False)
-
 
     split_dataset() >> feature_engineering()
 

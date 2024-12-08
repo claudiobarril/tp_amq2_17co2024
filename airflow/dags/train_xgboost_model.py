@@ -2,12 +2,14 @@ import datetime
 import logging
 
 from airflow.decorators import dag, task
-from sklearn.linear_model import Ridge
+from scipy.stats import uniform, randint
+from xgboost import XGBRegressor
+from sklearn.model_selection import RandomizedSearchCV, KFold
 
 markdown_text = """
-### Re-Train the Model for Cars Data
+### Train XGBoost Model for Cars Data
 
-This DAG trains a simple model based on new data, tests the previous model, and put in production the new one 
+This DAG trains xgboost model based on new data, tests the previous model, and put in production the new one 
 if it performs  better than the old one. It uses the mean absolute error to evaluate the model with the test data.
 
 """
@@ -18,32 +20,36 @@ default_args = {
     'schedule_interval': None,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=5),
-    'dagrun_timeout': datetime.timedelta(minutes=15)
+    'dagrun_timeout': datetime.timedelta(minutes=15),
+    'catchup': False,  # Evitar trabajos pendientes
 }
 
+
 @dag(
-    dag_id="train_simple_model",
-    description="Train simple model based on new data, tests the previous model, and put in production the new one if "
+    dag_id="train_xgboost_model",
+    description="Train the model based on new data, tests the previous model, and put in production the new one if "
                 "it performs better than the old one",
     doc_md=markdown_text,
-    tags=["Re-Train", "Cars"],
+    tags=["Train", "Cars", "XGBoost"],
     default_args=default_args,
     catchup=False,
 )
-def train_simple_model():
+def train_xgboost_model():
     @task.virtualenv(
-        task_id="train_simple_challenger_model",
+        task_id="train_xgboost_challenger_model",
         requirements=["scikit-learn==1.3.2",
                       "mlflow==2.10.2",
                       "awswrangler==3.6.0"],
         system_site_packages=True
     )
-    def train_simple_challenger_model():
+    def train_xgboost_challenger_model():
         import datetime
         import logging
         import mlflow
         import awswrangler as wr
-        from sklearn.linear_model import Ridge
+        from scipy.stats import uniform, randint
+        from xgboost import XGBRegressor
+        from sklearn.model_selection import RandomizedSearchCV, KFold
 
         from sklearn.base import clone
         from sklearn.metrics import mean_absolute_error
@@ -65,9 +71,9 @@ def train_simple_model():
             # Track the experiment
             experiment = mlflow.set_experiment("Cars")
 
-            mlflow.start_run(run_name='Challenger_run_' + datetime.datetime.today().strftime('%Y/%m/%d-%H:%M:%S"'),
+            mlflow.start_run(run_name='Train_XGBoost_run_' + datetime.datetime.today().strftime('%Y/%m/%d-%H:%M:%S"'),
                              experiment_id=experiment.experiment_id,
-                             tags={"experiment": "challenger models", "dataset": "Cars"},
+                             tags={"experiment": "train models", "dataset": "Cars"},
                              log_system_metrics=True)
 
             params = model.get_params()
@@ -80,12 +86,11 @@ def train_simple_model():
 
             signature = infer_signature(X, model.predict(X))
 
-            mlflow.sklearn.log_model(
-                sk_model=model,
+            mlflow.xgboost.log_model(
+                xgb_model=model,
                 artifact_path=artifact_path,
                 signature=signature,
-                serialization_format='cloudpickle',
-                registered_model_name="cars_ridge_model_dev",
+                registered_model_name="cars_xgboost_model_dev",
                 metadata={"model_data_version": 1}
             )
 
@@ -95,7 +100,7 @@ def train_simple_model():
         def register_challenger(model, mean_absolute_error, model_uri):
 
             client = mlflow.MlflowClient()
-            name = "cars_ridge_model_prod"
+            name = "cars_xgboost_model_prod"
 
             # Save the model params as tags
             tags = model.get_params()
@@ -121,35 +126,56 @@ def train_simple_model():
             client.set_registered_model_alias(name, "challenger", result.version)
 
         logger.info("Create Model")
-        model = Ridge(alpha=2.288)
+        model = XGBRegressor(random_state=42)
+
+        param_dist = {
+            'n_estimators': randint(100, 500),
+            'max_depth': randint(3, 10),
+            'learning_rate': uniform(0.01, 0.3),
+            'subsample': uniform(0.5, 0.5),
+            'colsample_bytree': uniform(0.5, 0.5),
+            'gamma': uniform(0, 0.5),
+            'reg_alpha': uniform(0, 1),
+            'reg_lambda': uniform(1, 2)
+        }
+
+        xgb = RandomizedSearchCV(
+            estimator=model,
+            param_distributions=param_dist,
+            n_iter=50,
+            cv=KFold(n_splits=5, shuffle=True, random_state=42),
+            scoring='neg_mean_squared_error',
+            random_state=42,
+        )
 
         # Load the dataset
         X_train, y_train, X_test, y_test = load_the_train_test_data()
 
-        model.fit(X_train, y_train)
+        xgb.fit(X_train, y_train)
+
+        # Guardar el mejor modelo
+        challenger_model = xgb.best_estimator_
 
         # Obtain the metric of the model
-        y_pred = model.predict(X_test)
+        y_pred = challenger_model.predict(X_test)
         mean_absolute_error = mean_absolute_error(y_test, y_pred)
         logger.info("Mean Absolute Error: %s", mean_absolute_error)
 
         # Track the experiment
-        artifact_uri = mlflow_track_experiment(model, X_train)
-        logger.info("Artifact URI: %s", artifact_uri)
+        artifact_uri = mlflow_track_experiment(challenger_model, X_train)
 
         # Record the model
-        register_challenger(model, mean_absolute_error, artifact_uri)
+        register_challenger(challenger_model, mean_absolute_error, artifact_uri)
         logger.info("Challenger registered!")
 
-
     @task.virtualenv(
-        task_id="evaluate_simple_champion_challenge",
+        task_id="evaluate_xgboost_champion_challenge",
         requirements=["scikit-learn==1.3.2",
                       "mlflow==2.10.2",
                       "awswrangler==3.6.0"],
         system_site_packages=True
     )
-    def evaluate_simple_champion_challenge():
+    def evaluate_xgboost_champion_challenge():
         import mlflow
         import logging
         import awswrangler as wr
@@ -160,11 +186,11 @@ def train_simple_model():
         mlflow.set_tracking_uri('http://mlflow:5002')
 
         def load_the_model(alias):
-            model_name = "cars_ridge_model_prod"
+            model_name = "cars_xgboost_model_prod"
             client = mlflow.MlflowClient()
             try:
                 model_data = client.get_model_version_by_alias(model_name, alias)
-                model = mlflow.sklearn.load_model(model_data.source)
+                model = mlflow.xgboost.load_model(model_data.source)
                 return model
             except mlflow.exceptions.RestException as e:
                 if "Registered model alias" in str(e) and "not found" in str(e):
@@ -240,13 +266,13 @@ def train_simple_model():
             else:
                 mlflow.log_param("Winner", 'Champion')
 
-        name = "cars_ridge_model_prod"
+        name = "cars_xgboost_model_prod"
         if not mean_absolute_error_champion or mean_absolute_error_challenger < mean_absolute_error_champion:
             promote_challenger(name)
         else:
             demote_challenger(name)
 
-    train_simple_challenger_model() >> evaluate_simple_champion_challenge()
+    train_xgboost_challenger_model() >> evaluate_xgboost_champion_challenge()
 
 
-my_dag = train_simple_model()
+my_dag = train_xgboost_model()
