@@ -23,6 +23,3 @@ COPY requirements.txt /requirements.txt
 RUN pip install --upgrade pip \
 #    && pip install scikit-learn==1.5.2 --index-url https://pypi.org/simple \
     && pip install --no-cache-dir apache-airflow[virtualenv]==2.10.3 -r /requirements.txt
-
-# Optionally, set the working directory
-WORKDIR /opt/airflow

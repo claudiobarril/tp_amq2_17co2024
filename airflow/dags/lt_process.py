@@ -92,8 +92,8 @@ def process_lt_cars_data():
         X_train_processed = final_pipeline.fit_transform_df(X_train)
         X_test_processed = final_pipeline.transform_df(X_test)
 
-        wr.s3.to_csv(df=X_train_processed, path="s3://data/raw/cars_X_train_processed.csv", index=False)
-        wr.s3.to_csv(df=X_test_processed, path="s3://data/raw/cars_X_test_processed.csv", index=False)
+        wr.s3.to_csv(df=X_train_processed, path="s3://data/final/train/cars_X_train_processed.csv", index=False)
+        wr.s3.to_csv(df=X_test_processed, path="s3://data/final/test/cars_X_test_processed.csv", index=False)
 
 
     split_dataset() >> feature_engineering()

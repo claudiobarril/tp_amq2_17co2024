@@ -31,13 +31,13 @@ default_args = {
 def processing_dag():
 
     @task.virtualenv(
-        task_id="train_the_challenger_model",
+        task_id="train_the_challenger_model_old",
         requirements=["scikit-learn==1.3.2",
                       "mlflow==2.10.2",
                       "awswrangler==3.6.0"],
         system_site_packages=True
     )
-    def train_the_challenger_model():
+    def train_the_challenger_model_old():
         import datetime
         import mlflow
         import awswrangler as wr
@@ -46,7 +46,7 @@ def processing_dag():
         from sklearn.metrics import f1_score
         from mlflow.models import infer_signature
 
-        mlflow.set_tracking_uri('http://mlflow:5000')
+        mlflow.set_tracking_uri('http://mlflow:5002')
 
         def load_the_champion_model():
 
@@ -145,19 +145,19 @@ def processing_dag():
 
 
     @task.virtualenv(
-        task_id="train_the_challenger_model",
+        task_id="evaluate_champion_challenge_old",
         requirements=["scikit-learn==1.3.2",
                       "mlflow==2.10.2",
                       "awswrangler==3.6.0"],
         system_site_packages=True
     )
-    def evaluate_champion_challenge():
+    def evaluate_champion_challenge_old():
         import mlflow
         import awswrangler as wr
 
         from sklearn.metrics import f1_score
 
-        mlflow.set_tracking_uri('http://mlflow:5000')
+        mlflow.set_tracking_uri('http://mlflow:5002')
 
         def load_the_model(alias):
             model_name = "heart_disease_model_prod"
@@ -234,7 +234,7 @@ def processing_dag():
         else:
             demote_challenger(name)
 
-    train_the_challenger_model() >> evaluate_champion_challenge()
+    train_the_challenger_model_old() >> evaluate_champion_challenge_old()
 
 
 my_dag = processing_dag()
