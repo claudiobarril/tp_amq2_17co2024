@@ -1,0 +1,1 @@
+{"flow_id": "BatchProcessingModel", "run_number": "1733615371009785", "step_name": "ingest_redis", "task_id": "5", "field_name": "attempt_ok", "type": "internal_attempt_status", "value": "True", "tags": ["attempt_id:0"], "user_name": "christianpisani", "ts_epoch": 1733615374285}

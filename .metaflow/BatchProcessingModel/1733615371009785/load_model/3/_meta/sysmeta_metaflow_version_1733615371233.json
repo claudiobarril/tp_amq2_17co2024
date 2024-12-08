@@ -1,0 +1,1 @@
+{"flow_id": "BatchProcessingModel", "run_number": "1733615371009785", "step_name": "load_model", "task_id": "3", "field_name": "metaflow_version", "type": "metaflow_version", "value": "2.12.37", "tags": ["attempt_id:0"], "user_name": "christianpisani", "ts_epoch": 1733615371233}
