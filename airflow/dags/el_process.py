@@ -1,22 +1,14 @@
-import datetime
-from airflow.decorators import dag, task
 import awswrangler as wr
 import mlcroissant as mlc
 import pandas as pd
-import logging
+
+from airflow.decorators import dag, task
+from config.default_args import default_args  # Importa el archivo
 
 markdown_text = """
 ### EL Process for Cars Data
 """
 
-default_args = {
-    'owner': "17co2024",
-    'depends_on_past': False,
-    'schedule_interval': None,
-    'retries': 1,
-    'retry_delay': datetime.timedelta(minutes=5),
-    'dagrun_timeout': datetime.timedelta(minutes=15)
-}
 
 @dag(
     dag_id="process_el_cars_data",
@@ -36,7 +28,8 @@ def process_el_cars_data():
         logger = logging.getLogger("airflow.task")
         try:
             # Cargar el dataset desde Kaggle usando Croissant
-            croissant_dataset = mlc.Dataset('http://www.kaggle.com/datasets/sajaabdalaal/car-details-v3csv/croissant/download')
+            croissant_dataset = mlc.Dataset(
+                'http://www.kaggle.com/datasets/sajaabdalaal/car-details-v3csv/croissant/download')
 
             # Examinar los record sets disponibles
             record_sets = croissant_dataset.metadata.record_sets
@@ -61,5 +54,6 @@ def process_el_cars_data():
             raise
 
     get_data()
+
 
 dag = process_el_cars_data()
