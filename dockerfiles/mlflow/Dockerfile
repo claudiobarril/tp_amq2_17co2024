@@ -1,9 +1,14 @@
 FROM python:3.11-slim
 
+# Skip signature verification (not recommended for production)
+# RUN apt-get update -o Acquire::AllowInsecureRepositories=true \
+#     -o Acquire::AllowDowngradeToInsecureRepositories=true && \
+#     apt-get install -y wget --allow-unauthenticated
+
 COPY requirements.txt /requirements.txt
 RUN apt-get update && apt-get install -y wget
 RUN pip install --upgrade pip
 RUN pip install mlflow[extras] psycopg2-binary boto3 cryptography pymysql
 RUN pip install --no-cache-dir -r /requirements.txt
 
-EXPOSE 5001
+EXPOSE 5002
