@@ -84,12 +84,11 @@ def retrain_model():
 
             signature = infer_signature(X, model.predict(X))
 
-            mlflow.sklearn.log_model(
-                sk_model=model,
+            mlflow.xgboost.log_model(
+                xgb_model=model,
                 artifact_path=artifact_path,
                 signature=signature,
-                serialization_format='cloudpickle',
-                registered_model_name="cars_model_dev",
+                registered_model_name="cars_xgboost_model_dev",
                 metadata={"model_data_version": 1}
             )
 
@@ -99,7 +98,7 @@ def retrain_model():
         def register_challenger(model, mean_absolute_error, model_uri):
 
             client = mlflow.MlflowClient()
-            name = "cars_model_prod"
+            name = "cars_xgboost_model_prod"
 
             # Save the model params as tags
             tags = model.get_params()
@@ -186,11 +185,11 @@ def retrain_model():
         mlflow.set_tracking_uri('http://mlflow:5002')
 
         def load_the_model(alias):
-            model_name = "cars_model_prod"
+            model_name = "cars_xgboost_model_prod"
             client = mlflow.MlflowClient()
             try:
                 model_data = client.get_model_version_by_alias(model_name, alias)
-                model = mlflow.sklearn.load_model(model_data.source)
+                model = mlflow.xgboost.load_model(model_data.source)
                 return model
             except mlflow.exceptions.RestException as e:
                 if "Registered model alias" in str(e) and "not found" in str(e):
@@ -266,7 +265,7 @@ def retrain_model():
             else:
                 mlflow.log_param("Winner", 'Champion')
 
-        name = "cars_model_prod"
+        name = "cars_xgboost_model_prod"
         if not mean_absolute_error_champion or mean_absolute_error_challenger < mean_absolute_error_champion:
             promote_challenger(name)
         else:
