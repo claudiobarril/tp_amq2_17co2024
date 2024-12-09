@@ -20,8 +20,5 @@ class MultipleOneHotEncoder(BaseEstimator, TransformerMixin):
         encoded_df = pd.DataFrame(encoded_columns, columns=self.encoder.get_feature_names_out(self.categorical_cols))
         encoded_df.index = X.index
         X = pd.concat([X.drop(columns=self.categorical_cols), encoded_df], axis=1)
-        for col in self.categorical_cols:
-            X.columns = X.columns.str.replace(rf"{col}_b'(.*?)'", rf"{col}_\1", regex=True)
-        X.columns = X.columns.str.replace(r"make_b'(.*)'", r"make_\1", regex=True)
 
         return X

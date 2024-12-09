@@ -29,7 +29,8 @@ def process_el_cars_data():
         try:
             # Cargar el dataset desde Kaggle usando Croissant
             croissant_dataset = mlc.Dataset(
-                'http://www.kaggle.com/datasets/sajaabdalaal/car-details-v3csv/croissant/download')
+                'http://www.kaggle.com/datasets/sajaabdalaal/car-details-v3csv/croissant/download'
+            )
 
             # Examinar los record sets disponibles
             record_sets = croissant_dataset.metadata.record_sets
@@ -39,7 +40,10 @@ def process_el_cars_data():
             # Extraer datos en un DataFrame
             dataframe = pd.DataFrame(croissant_dataset.records(record_set=record_sets[0].uuid))
             dataframe.columns = [col.split('/')[-1] for col in dataframe.columns]
+            dataframe = dataframe.applymap(lambda x: x.decode('utf-8') if isinstance(x, bytes) else x)
+
             logger.info("Nombres de columnas después de limpieza: %s", dataframe.columns)
+            logger.info("Primeras filas del DataFrame:\n%s", dataframe.head().to_string(index=False))
 
             # Replace this with the actual data source URL or path
             data_path = "s3://data/raw/cars.csv"

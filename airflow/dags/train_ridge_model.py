@@ -149,7 +149,7 @@ def train_ridge_model():
         logger = logging.getLogger("airflow.task")
         mlflow.set_tracking_uri('http://mlflow:5002')
 
-        def load_the_model(alias, model_name):
+        def load_the_model(model_name, alias):
             client = mlflow.MlflowClient()
             try:
                 model_data = client.get_model_version_by_alias(model_name, alias)
@@ -198,7 +198,7 @@ def train_ridge_model():
             client.delete_registered_model_alias(name, "challenger")
 
         # Load challenger model
-        challenger_model = load_the_model("challenger", "cars_ridge_model_dev")
+        challenger_model = load_the_model("cars_ridge_model_dev", "challenger")
         # Load the dataset
         X_test, y_test = load_the_test_data()
 
@@ -212,7 +212,7 @@ def train_ridge_model():
         list_run = mlflow.search_runs([experiment.experiment_id], output_format="list")
 
         # Load champion model
-        champion_model = load_the_model("champion", "cars_ridge_model_prod")
+        champion_model = load_the_model("cars_ridge_model_prod", "champion")
         mean_absolute_error_champion = None
 
         if champion_model:
