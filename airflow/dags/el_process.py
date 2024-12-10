@@ -3,7 +3,7 @@ import mlcroissant as mlc
 import pandas as pd
 
 from airflow.decorators import dag, task
-from config.default_args import default_args  # Importa el archivo
+from config.default_args import default_args
 
 markdown_text = """
 ### EL Process for Cars Data
