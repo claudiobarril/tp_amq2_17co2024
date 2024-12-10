@@ -73,6 +73,7 @@ def process_lt_cars_data():
         import boto3
         import joblib
         import os
+        import pandas as pd
 
         from sklearn.experimental import enable_iterative_imputer
         from feature_engineering.cars_pipeline import CarsPipeline
@@ -91,6 +92,9 @@ def process_lt_cars_data():
 
         wr.s3.to_csv(df=X_train_processed, path=Variable.get("cars_X_train_processed_location"), index=False)
         wr.s3.to_csv(df=X_test_processed, path=Variable.get("cars_X_test_processed_location"), index=False)
+
+        combined_processed = pd.concat([X_train_processed, X_test_processed])
+        wr.s3.to_csv(df=combined_processed, path=Variable.get("cars_X_combined_processed_location"), index=False)
 
         # Serialize the final_pipeline using joblib
         pipeline_path = "/tmp/final_pipeline.joblib"
