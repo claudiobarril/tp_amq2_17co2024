@@ -29,13 +29,13 @@ def processing_dag():
     )
     def train_the_challenger_model():
         import mlflow
-        import awswrangler as wr
         import numpy as np
 
         from xgboost import XGBClassifier
         from sklearn.metrics import mean_squared_error
         from airflow.models import Variable
         from models.model_manager import ModelManager
+        from models.data_loader import load_train_test_data
         from experiment.experiment_tracker import ExperimentTracker
 
         mlflow_tracking_uri = Variable.get("mlflow_tracking_uri")
@@ -43,13 +43,6 @@ def processing_dag():
 
         model_manager = ModelManager()
         experiment_tracker = ExperimentTracker()
-
-        def load_train_test_data():
-            X_train = wr.s3.read_csv(Variable.get("cars_X_train_processed_location"))
-            y_train = wr.s3.read_csv(Variable.get("cars_y_train_location"))
-            X_test = wr.s3.read_csv(Variable.get("cars_X_test_processed_location"))
-            y_test = wr.s3.read_csv(Variable.get("cars_y_test_location"))
-            return X_train, y_train, X_test, y_test
 
         # Load the champion model
         champion_model = model_manager.load_model("champion")
