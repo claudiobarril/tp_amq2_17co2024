@@ -1,5 +1,4 @@
 from airflow.decorators import dag, task
-from airflow.models import Variable
 from config.default_args import default_args
 
 markdown_text = """
