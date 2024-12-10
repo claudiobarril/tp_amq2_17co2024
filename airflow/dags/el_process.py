@@ -1,8 +1,5 @@
-import awswrangler as wr
-import mlcroissant as mlc
-import pandas as pd
-
 from airflow.decorators import dag, task
+from airflow.models import Variable
 from config.default_args import default_args
 
 markdown_text = """
@@ -24,9 +21,15 @@ def process_el_cars_data():
         """
         Load the raw data from the cars dataset.
         """
+        import awswrangler as wr
+        import mlcroissant as mlc
         import logging
+        import pandas as pd
+        from airflow.models import Variable
+
         logger = logging.getLogger("airflow.task")
         try:
+            logger.info("Obteniendo dataset")
             # Cargar el dataset desde Kaggle usando Croissant
             croissant_dataset = mlc.Dataset(
                 'http://www.kaggle.com/datasets/sajaabdalaal/car-details-v3csv/croissant/download'
@@ -34,26 +37,22 @@ def process_el_cars_data():
 
             # Examinar los record sets disponibles
             record_sets = croissant_dataset.metadata.record_sets
-            print(f"Conjuntos de registros disponibles: {record_sets}")
-            logger.info("Conjuntos de registros disponibles: %s", record_sets)
 
             # Extraer datos en un DataFrame
             dataframe = pd.DataFrame(croissant_dataset.records(record_set=record_sets[0].uuid))
             dataframe.columns = [col.split('/')[-1] for col in dataframe.columns]
             dataframe = dataframe.applymap(lambda x: x.decode('utf-8') if isinstance(x, bytes) else x)
 
-            logger.info("Nombres de columnas después de limpieza: %s", dataframe.columns)
-            logger.info("Primeras filas del DataFrame:\n%s", dataframe.head().to_string(index=False))
-
             # Replace this with the actual data source URL or path
-            data_path = "s3://data/raw/cars.csv"
+            data_path = Variable.get("cars_dataset_location")
 
+            logger.info("Subiendo dataset a: %s", data_path)
             # Writing to S3
             wr.s3.to_csv(df=dataframe,
                          path=data_path,
                          index=False)
+            logger.info("Dataset subido!")
         except Exception as e:
-            print(f"Error occurred: {e}")
             logger.error(e)
             raise
 

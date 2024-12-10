@@ -1,5 +1,5 @@
-import numpy as np
 from airflow.decorators import dag, task
+from airflow.models import Variable
 from config.default_args import default_args
 
 markdown_text = """
@@ -37,8 +37,10 @@ def processing_dag():
         from xgboost import XGBClassifier
         from sklearn.metrics import mean_squared_error
         from mlflow.models import infer_signature
+        from airflow.models import Variable
 
-        mlflow.set_tracking_uri('http://mlflow:5002')
+        mlflow_tracking_uri = Variable.get("mlflow_tracking_uri")
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
 
         def load_the_champion_model():
 
@@ -53,10 +55,10 @@ def processing_dag():
             return champion_version
 
         def load_the_train_test_data():
-            X_train = wr.s3.read_csv("s3://data/final/train/cars_X_train_processed.csv")
-            y_train = wr.s3.read_csv("s3://data/final/train/cars_y_train.csv")
-            X_test = wr.s3.read_csv("s3://data/final/test/cars_X_test_processed.csv")
-            y_test = wr.s3.read_csv("s3://data/final/test/cars_y_test.csv")
+            X_train = wr.s3.read_csv(Variable.get("cars_X_train_processed_location"))
+            y_train = wr.s3.read_csv(Variable.get("cars_y_train_location"))
+            X_test = wr.s3.read_csv(Variable.get("cars_X_test_processed_location"))
+            y_test = wr.s3.read_csv(Variable.get("cars_y_test_location"))
 
             return X_train, y_train, X_test, y_test
 
@@ -84,7 +86,7 @@ def processing_dag():
                 xgb_model=model,
                 artifact_path=artifact_path,
                 signature=signature,
-                registered_model_name="cars_xgboost_model_dev",
+                registered_model_name="cars_model_dev",
                 metadata={"model_data_version": 1}
             )
 
@@ -151,8 +153,10 @@ def processing_dag():
         import numpy as np
 
         from sklearn.metrics import mean_squared_error
+        from airflow.models import Variable
 
-        mlflow.set_tracking_uri('http://mlflow:5002')
+        mlflow_tracking_uri = Variable.get("mlflow_tracking_uri")
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
 
         def load_the_model(alias):
             model_name = "cars_model_prod"
@@ -165,8 +169,8 @@ def processing_dag():
             return model
 
         def load_the_test_data():
-            X_test = wr.s3.read_csv("s3://data/final/test/cars_X_test_processed.csv")
-            y_test = wr.s3.read_csv("s3://data/final/test/cars_y_test.csv")
+            X_test = wr.s3.read_csv(Variable.get("cars_X_test_processed_location"))
+            y_test = wr.s3.read_csv(Variable.get("cars_y_test_location"))
 
             return X_test, y_test
 
