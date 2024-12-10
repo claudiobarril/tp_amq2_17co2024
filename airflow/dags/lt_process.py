@@ -26,14 +26,16 @@ def process_lt_cars_data():
         Generate a dataset split into a training part and a test part.
         """
         import awswrangler as wr
-        from sklearn.model_selection import train_test_split
         import numpy as np
         import logging
+
+        from sklearn.model_selection import train_test_split
+        from airflow.models import Variable
 
         def save_to_csv(df, path):
             wr.s3.to_csv(df=df, path=path, index=False)
 
-        data_original_path = "s3://data/raw/cars.csv"
+        data_original_path = Variable.get("cars_dataset_location")
         dataset = wr.s3.read_csv(data_original_path)
 
         logger = logging.getLogger("airflow.task")
@@ -47,13 +49,13 @@ def process_lt_cars_data():
 
         X_train, X_test, y_train, y_test = train_test_split(X, y_log, test_size=0.3, random_state=42)
 
-        X_train_path = "s3://data/final/train/cars_X_train.csv"
-        X_test_path = "s3://data/final/test/cars_X_test.csv"
+        X_train_path = Variable.get("cars_X_train_location")
+        X_test_path = Variable.get("cars_X_test_location")
 
         save_to_csv(X_train, X_train_path)
         save_to_csv(X_test, X_test_path)
-        save_to_csv(y_train, "s3://data/final/train/cars_y_train.csv")
-        save_to_csv(y_test, "s3://data/final/test/cars_y_test.csv")
+        save_to_csv(y_train, Variable.get("cars_y_train_location"))
+        save_to_csv(y_test, Variable.get("cars_y_test_location"))
 
         return {"X_train_path": X_train_path, "X_test_path": X_test_path}
 
@@ -70,9 +72,11 @@ def process_lt_cars_data():
         import logging
         import boto3
         import joblib
+        import os
 
         from sklearn.experimental import enable_iterative_imputer
         from feature_engineering.cars_pipeline import CarsPipeline
+        from airflow.models import Variable
 
         logger = logging.getLogger("airflow.task")
         logger.info("X_train_path: %s", X_train_path)
@@ -81,33 +85,35 @@ def process_lt_cars_data():
         X_train = wr.s3.read_csv(X_train_path)
         X_test = wr.s3.read_csv(X_test_path)
 
-        logger.info("[ANTES] Columnas del dataset X_train: %s", X_train.columns)
-        logger.info("[ANTES] Columnas del dataset X_test: %s", X_test.columns)
-
-        # Log the first few rows of X_train and X_test
-        logger.info("Primeras filas de X_train:\n%s", X_train.head().to_string(index=False))
-        logger.info("Primeras filas de X_test:\n%s", X_test.head().to_string(index=False))
-
         final_pipeline = CarsPipeline()
         X_train_processed = final_pipeline.fit_transform_df(X_train)
         X_test_processed = final_pipeline.transform_df(X_test)
 
-        logger.info("[DESPUES] Columnas del dataset X_train: %s", X_train_processed.columns)
-        logger.info("[DESPUES] Columnas del dataset X_test: %s", X_test_processed.columns)
-
-        wr.s3.to_csv(df=X_train_processed, path="s3://data/final/train/cars_X_train_processed.csv", index=False)
-        wr.s3.to_csv(df=X_test_processed, path="s3://data/final/test/cars_X_test_processed.csv", index=False)
+        wr.s3.to_csv(df=X_train_processed, path=Variable.get("cars_X_train_processed_location"), index=False)
+        wr.s3.to_csv(df=X_test_processed, path=Variable.get("cars_X_test_processed_location"), index=False)
 
         # Serialize the final_pipeline using joblib
         pipeline_path = "/tmp/final_pipeline.joblib"
-        joblib.dump(final_pipeline, pipeline_path)
+        try:
+            joblib.dump(final_pipeline, pipeline_path)
+            logger.info("Pipeline serialized to %s", pipeline_path)
 
-        # Save the serialized pipeline to S3
-        s3 = boto3.client('s3')
-        bucket_name = "data"
-        object_key = "final/pipeline/final_pipeline.joblib"
+            # Save the serialized pipeline to S3
+            s3 = boto3.client('s3')
+            bucket_name = "data"
+            object_key = Variable.get("pipeline_object_key")
 
-        s3.upload_file(pipeline_path, bucket_name, object_key)
+            s3.upload_file(pipeline_path, bucket_name, object_key)
+            logger.info("Pipeline uploaded to s3://%s/%s", bucket_name, object_key)
+        except Exception as e:
+            logger.error(e)
+            logger.error(f"An error occurred: {e}")
+        finally:
+            # Clean up: delete the temporary file after uploading to S3
+            if os.path.exists(pipeline_path):
+                os.remove(pipeline_path)
+                logger.info("Temporary file %s deleted.", pipeline_path)
+
 
     split_dataset_output = split_dataset()
     feature_engineering(split_dataset_output["X_train_path"], split_dataset_output["X_test_path"])
