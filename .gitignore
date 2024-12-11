@@ -171,3 +171,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 amq2/
+/.metaflow/.*
+.metaflow
+latest_run
+latest/.*
+latest
+/airflow/logs/scheduler/latest/

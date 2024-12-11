@@ -315,6 +315,25 @@ services:
     volumes:
       - ${AIRFLOW_PROJ_DIR:-./airflow}:/sources
 
+
+  redis:
+    image: redis:latest
+    restart: always
+    networks:
+      - frontend
+      - backend
+    profiles:
+      - all
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/root/redis
+      - redis_data:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-data}
+      - REDIS_PORT=${REDIS_PORT:-data}
+      - REDIS_DATABASES=${REDIS_DATABASES:-data}
+
 networks:
   frontend:
     driver: bridge
@@ -324,3 +343,4 @@ networks:
 volumes:
   db_data:
   minio_data:
+  redis_data:
