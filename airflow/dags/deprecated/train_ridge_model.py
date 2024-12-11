@@ -40,15 +40,17 @@ def train_ridge_model():
         from sklearn.linear_model import Ridge
         from sklearn.base import clone
         from sklearn.metrics import mean_absolute_error
+        from airflow.models import Variable
 
         mlflow.set_tracking_uri('http://mlflow:5002')
         logger = logging.getLogger("airflow.task")
 
         def load_the_train_test_data():
-            X_train = wr.s3.read_csv("s3://data/final/train/cars_X_train_processed.csv")
-            y_train = wr.s3.read_csv("s3://data/final/train/cars_y_train.csv")
-            X_test = wr.s3.read_csv("s3://data/final/test/cars_X_test_processed.csv")
-            y_test = wr.s3.read_csv("s3://data/final/test/cars_y_test.csv")
+            X_train = wr.s3.read_csv(Variable.get("cars_X_train_location"))
+            y_train = wr.s3.read_csv(Variable.get("cars_y_train_location"))
+            X_test = wr.s3.read_csv(Variable.get("cars_X_test_location"))
+            y_test = wr.s3.read_csv(Variable.get("cars_y_test_location"))
+
 
             return X_train, y_train, X_test, y_test
 
@@ -146,6 +148,7 @@ def train_ridge_model():
         import numpy as np
 
         from sklearn.metrics import mean_absolute_error
+        from airflow.models import Variable
 
         logger = logging.getLogger("airflow.task")
         mlflow.set_tracking_uri('http://mlflow:5002')
@@ -164,8 +167,8 @@ def train_ridge_model():
                     raise
 
         def load_the_test_data():
-            X_test = wr.s3.read_csv("s3://data/final/test/cars_X_test_processed.csv")
-            y_test = wr.s3.read_csv("s3://data/final/test/cars_y_test.csv")
+            X_test = wr.s3.read_csv(Variable.get("cars_X_test_location"))
+            y_test = wr.s3.read_csv(Variable.get("cars_y_test_location"))
 
             return X_test, y_test
 

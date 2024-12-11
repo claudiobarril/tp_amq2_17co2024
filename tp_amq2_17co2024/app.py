@@ -1,8 +1,11 @@
+import hashlib
+
 import boto3
 import mlflow
 import logging
 import numpy as np
 import pandas as pd
+import redis
 
 from fastapi import FastAPI, Body, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse
@@ -18,14 +21,17 @@ from joblib import load
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from schemas import ModelInput, ModelOutput
+from models.models.prediction_key import PredictionKey
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Cargar el modelo y el pipeline
-loader = ModelLoader("best_xgboost_model", "cars_best_model")
-final_pipeline = load("../models/final_pipeline.joblib")
+# loader = ModelLoader("best_catboost_model", "cars_best_model")
+final_pipeline = load("./final_pipeline.joblib")
+r = redis.Redis(host='redis', port=6379, decode_responses=True)
+
 
 # Instancia de la aplicación FastAPI con descripción
 app = FastAPI(
@@ -50,7 +56,7 @@ app.add_middleware(
 def startup_event():
     """Cargar el modelo al iniciar la aplicación."""
     try:
-        loader.load_model()
+        # loader.load_model()
         logger.info("Modelo cargado correctamente al iniciar la aplicación.")
     except Exception as e:
         logger.error(f"Error al cargar el modelo durante el inicio: {e}")
@@ -71,6 +77,7 @@ async def read_root():
     </ul>
     """
 
+
 @app.post("/predict/", response_model=ModelOutput)
 async def predict(
     features: Annotated[
@@ -85,21 +92,36 @@ async def predict(
     Recibe las características del auto y devuelve el precio predicho.
     """
     # Verificar si el modelo necesita ser actualizado en segundo plano
-    background_tasks.add_task(loader.check_model)
+    # background_tasks.add_task(loader.check_model)
 
     try:
-        # Convertir el input a DataFrame
+
+        logger.info('Convertir el input a DataFrame')
         features_df = pd.DataFrame([features.dict()])
 
-        # Procesar las features con el pipeline
+        logger.info('Procesar las features con el pipeline')
         features_processed = final_pipeline.transform(features_df)
 
-        # Realizar la predicción en un hilo separado
-        prediction = await asyncio.to_thread(loader.model_ml.predict, features_processed)
-        y_pred = np.exp(prediction)
+        logger.info('Crear keys')
+        keys, hashes = PredictionKey().from_pipeline(features_processed)
 
-        logger.info("Predicción realizada con éxito.")
-        return ModelOutput(output=float(y_pred[0]))
+        logger.info('Buscar keys en Redis')
+        model_output = r.get(hashes[0])
+
+        logger.info(f'Predecir {hashes[0]}')
+        if model_output is None:
+            y_pred = "0"
+        else:
+            y_pred = model_output
+
+        #
+        # # Realizar la predicción en un hilo separado
+        # prediction = await asyncio.to_thread(loader.model_ml.predict, features_processed)
+        # y_pred = np.exp(prediction)
+        #
+        logger.info(f"Predicción realizada con éxito. [{y_pred}]")
+
+        return ModelOutput(output=y_pred)
 
     except ValueError as e:
         logger.error(f"Error de validación: {e}")

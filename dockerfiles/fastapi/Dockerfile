@@ -8,7 +8,7 @@ COPY ../../poetry.lock .
 COPY ../../pyproject.toml .
 COPY ../../tp_amq2_17co2024/ .
 
-RUN apt-get clean && apt-get update && apt-get install -y \
+RUN apt-get clean && apt-get update --allow-insecure-repositories && apt-get install -y \
     gcc \
     build-essential \
     && rm -rf /var/lib/apt/lists/*

@@ -172,3 +172,8 @@ cython_debug/
 .idea/
 amq2/
 /.metaflow/.*
+.metaflow
+latest_run
+latest/.*
+latest
+/airflow/logs/scheduler/latest/
