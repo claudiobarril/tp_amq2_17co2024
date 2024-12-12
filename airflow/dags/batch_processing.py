@@ -5,17 +5,31 @@ import numpy as np
 import redis
 from catboost import CatBoostRegressor
 from models.prediction_key import PredictionKey
+import boto3
 import awswrangler as wr
 from airflow.models import Variable
+import logging
 
 REDIS_HOST = 'redis'
 REDIS_PORT = 6379
 
 
 def batch_processing(**kwargs):
+    logger = logging.getLogger("airflow.task")
+
+    s3_bucket = 'data'
+    s3_key = 'artifact/best_catboost_model.json'
     local_path = '/tmp/best_catboost_model.json'
 
     X_batch = wr.s3.read_csv(Variable.get("cars_X_combined_processed_location"))
+
+
+    s3_client = boto3.client('s3',
+                             aws_access_key_id='minio',
+                             aws_secret_access_key='minio123',
+                             endpoint_url='http://s3:9000')
+
+    s3_client.download_file(s3_bucket, s3_key, local_path)
 
     model = CatBoostRegressor()
     model.load_model(local_path)
@@ -29,6 +43,8 @@ def batch_processing(**kwargs):
 
     dict_redis = {}
     for idx, row in X_batch.iterrows():
+        if row['key'].startswith("0.3879969604110 -0.658581042244"):
+            logger.info(f'hash[{row["hash"]}] key[{row["key"]}]')
         dict_redis[row['hash']] = labels[idx]
 
     ti = kwargs['ti']

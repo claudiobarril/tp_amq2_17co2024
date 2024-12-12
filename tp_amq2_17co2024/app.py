@@ -46,8 +46,8 @@ final_pipeline = load(local_path)
 
 
 # Cargar el modelo y el pipeline
-# loader = ModelLoader("best_catboost_model", "cars_best_model")
-# final_pipeline = load("s3://data/pipeline/final_pipeline.joblib")
+loader = ModelLoader("best_catboost_model", "cars_best_model")
+final_pipeline = load("s3://data/pipeline/final_pipeline.joblib")
 r = redis.Redis(host='redis', port=6379, decode_responses=True)
 
 
@@ -109,8 +109,7 @@ async def predict(
 
     Recibe las características del auto y devuelve el precio predicho.
     """
-    # Verificar si el modelo necesita ser actualizado en segundo plano
-    # background_tasks.add_task(loader.check_model)
+    background_tasks.add_task(loader.check_model)
 
     try:
         logger.info('Convertir el input a DataFrame')
