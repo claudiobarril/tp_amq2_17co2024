@@ -113,7 +113,6 @@ async def predict(
     # background_tasks.add_task(loader.check_model)
 
     try:
-        print("caca")
         logger.info('Convertir el input a DataFrame')
         features_df = pd.DataFrame([features.dict()])
 
