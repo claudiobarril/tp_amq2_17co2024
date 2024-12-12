@@ -111,9 +111,6 @@ async def predict(
         logger.info('Convertir el input a DataFrame')
         features_df = pd.DataFrame([features.dict()])
 
-        logger.info(features_df)
-        logger.info(type(features_df))
-
         logger.info('Procesar las features con el pipeline')
         features_processed = final_pipeline.transform(features_df)
 
