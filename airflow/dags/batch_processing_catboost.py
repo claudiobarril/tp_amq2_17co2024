@@ -35,7 +35,7 @@ def batch_processing_model():
 
         """Process batch data and generate predictions."""
         # Load batch data
-        X_batch = wr.s3.read_csv(Variable.get("cars_X_test_processed_location"))
+        X_batch = wr.s3.read_csv(Variable.get("cars_X_combined_processed_location"))
 
         # Load CatBoost model
         client_mlflow = mlflow.MlflowClient()

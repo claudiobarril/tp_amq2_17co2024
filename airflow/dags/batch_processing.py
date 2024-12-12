@@ -1,103 +1,98 @@
-from datetime import datetime
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-import numpy as np
-import redis
-from catboost import CatBoostRegressor
-from models.prediction_key import PredictionKey
-import boto3
-import awswrangler as wr
-from airflow.models import Variable
-
-REDIS_HOST = 'redis'
-REDIS_PORT = 6379
+from airflow.decorators import dag, task
+from config.default_args import default_args
 
 
-def batch_processing(**kwargs):
-    s3_bucket = 'data'
-    s3_key = 'artifact/best_catboost_model.json'
-    local_path = '/tmp/best_catboost_model.json'
+markdown_text = """
+### Batch processing with best model
 
-    X_batch = wr.s3.read_csv(Variable.get("cars_X_combined_processed_location"))
+DAG for batch processing predictions
+"""
 
-
-    s3_client = boto3.client('s3',
-                             aws_access_key_id='minio',
-                             aws_secret_access_key='minio123',
-                             endpoint_url='http://s3:9000')
-
-    s3_client.download_file(s3_bucket, s3_key, local_path)
-
-    model = CatBoostRegressor()
-    model.load_model(local_path)
-
-    out = model.predict(X_batch)
-    labels = np.array([np.exp(o) for o in out]).astype(str)
-
-    keys, hashes = PredictionKey().from_dataframe(X_batch)
-    X_batch['key'] = keys
-    X_batch['hash'] = hashes
-
-    dict_redis = {}
-    for idx, row in X_batch.iterrows():
-        dict_redis[row['hash']] = labels[idx]
-
-    ti = kwargs['ti']
-    ti.xcom_push(key='redis_data', value=dict_redis)
-
-
-def ingest_redis(**kwargs):
-    ti = kwargs['ti']
-    redis_data = ti.xcom_pull(key='redis_data')
-
-    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-    pipeline = r.pipeline()
-
-    for key, value in redis_data.items():
-        pipeline.set(key, value)
-
-    pipeline.execute()
-
-
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'retries': 1,
-}
-
-dag = DAG(
-    'batch_processing_model',
+@dag(
+    dag_id="batch_processing_model",
+    description="DAG for batch processing predictions",
+    doc_md=markdown_text,
+    tags=["Batch-processing", "Cars"],
     default_args=default_args,
-    description='DAG para procesamiento por lotes de predicciones',
-    schedule_interval=None,
-    start_date=datetime(2024, 1, 1),
     catchup=False,
 )
+def batch_processing_model():
+    """DAG for batch processing predictions using best model available."""
 
-start = PythonOperator(
-    task_id='start',
-    python_callable=lambda: print("Starting Batch Prediction"),
-    dag=dag
-)
+    @task
+    def batch_processing():
+        from airflow.models import Variable
+        import mlflow.xgboost
+        import numpy as np
+        import awswrangler as wr
 
-batch_processing_task = PythonOperator(
-    task_id='batch_processing',
-    python_callable=batch_processing,
-    provide_context=True,
-    dag=dag
-)
+        # Set MLflow tracking URI
+        mlflow_tracking_uri = Variable.get("mlflow_tracking_uri")
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
 
-ingest_redis_task = PythonOperator(
-    task_id='ingest_redis',
-    python_callable=ingest_redis,
-    provide_context=True,
-    dag=dag
-)
+        """Process batch data and generate predictions."""
+        # Load batch data
+        X_batch = wr.s3.read_csv(Variable.get("cars_X_combined_processed_location"))
 
-end = PythonOperator(
-    task_id='end',
-    python_callable=lambda: print("Finished"),
-    dag=dag
-)
+        # Load model
+        client_mlflow = mlflow.MlflowClient()
 
-start >> batch_processing_task >> ingest_redis_task >> end
+        model_data_mlflow = client_mlflow.get_model_version_by_alias("cars_model_prod", "champion")
+        model = mlflow.xgboost.load_model(model_data_mlflow.source)
+
+        # Generate predictions
+        out = model.predict(X_batch)
+        labels = np.array([np.exp(o) for o in out]).astype(str)
+
+        # Create Redis-compatible data
+        from models.prediction_key import PredictionKey
+        keys, hashes = PredictionKey().from_dataframe(X_batch)
+        X_batch['key'] = keys
+        X_batch['hashed'] = hashes
+
+        dict_redis = {
+            row['hashed']: labels[idx]
+            for idx, row in X_batch.iterrows()
+        }
+
+        return dict_redis
+
+    @task
+    def ingest_redis(redis_data):
+        import redis
+        from airflow.models import Variable
+
+        redis_host = Variable.get("redis_host")
+        redis_port = Variable.get("redis_port")
+
+        """Ingest predictions into Redis."""
+        r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+        pipeline = r.pipeline()
+
+        for key, value in redis_data.items():
+            pipeline.set(key, value)
+
+        pipeline.execute()
+
+    @task
+    def start_task():
+        """Start task message."""
+        import logging
+
+        logger = logging.getLogger("airflow.task")
+        logger.info("Starting task message")
+
+    @task
+    def end_task():
+        """End task message."""
+        import logging
+
+        logger = logging.getLogger("airflow.task")
+        logger.info("Finished Batch Prediction")
+
+    # Workflow
+    redis_data = start_task() >> batch_processing()
+    ingest_redis(redis_data) >> end_task()
+
+# Register the DAG
+batch_processing_model()

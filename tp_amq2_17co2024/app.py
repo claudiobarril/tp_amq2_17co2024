@@ -112,7 +112,7 @@ async def predict(
             y_pred = "0"
             logger.info(f"no existe predicción para {hashes[0]}")
             logger.info(f"agregando solicitud para futuras predicciones")
-            asyncio.create_task(asyncio.to_thread(batch_prediction.add_request, s3_client, features_df, ))
+            asyncio.create_task(asyncio.to_thread(batch_prediction.add_request, s3_client, features_processed, ))
         else:
             y_pred = model_output
 
