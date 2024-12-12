@@ -19,17 +19,34 @@ def train_the_model():
 
     @task
     def get_or_create_experiment(experiment_name):
-        """Get or create an experiment in MLflow."""
+        """Get, create, or restore an experiment in MLflow."""
         import mlflow
-
+        import logging
+        from mlflow.tracking import MlflowClient
         from airflow.models import Variable
 
+        logger = logging.getLogger("airflow.task")
+
+        # Set MLflow tracking URI
         mlflow_tracking_uri = Variable.get("mlflow_tracking_uri")
         mlflow.set_tracking_uri(mlflow_tracking_uri)
 
+        # Initialize MLflow client
+        client = MlflowClient()
+
+        # Check if the experiment exists by name
         experiment = mlflow.get_experiment_by_name(experiment_name)
+
         if experiment:
+            if experiment.lifecycle_stage == "deleted":
+                logger.info("Experiment '%s' is deleted. Restoring it.", experiment_name)
+                client.restore_experiment(experiment.experiment_id)
+            else:
+                logger.info("Experiment '%s' found and is active.", experiment_name)
             return experiment.experiment_id
+
+        # If experiment does not exist, create a new one
+        logger.info("Experiment '%s' does not exist. Creating it.", experiment_name)
         return mlflow.create_experiment(experiment_name)
 
     @task
@@ -129,7 +146,7 @@ def train_the_model():
             try:
                 model_registered = client.get_registered_model(name)
             except mlflow.exceptions.MlflowException as e:
-                if "RESOURCE_NOT_FOUND" in str(e):
+                if "RESOURCE_DOES_NOT_EXIST" in str(e):
                     model_registered = None
                 else:
                     raise e
@@ -138,7 +155,7 @@ def train_the_model():
                 # If the model doesn't exist, create it
                 client.create_registered_model(name=name, description=desc)
 
-            # Guardamos como tag los hiper-parametros en la version del modelo
+            # Guardamos como tag los hiperparámetros en la version del modelo
             tags = xgb_best_model.get_params()
             tags["model"] = type(xgb_best_model).__name__
             tags["mae_training"] = metrics["MAE_training"]
