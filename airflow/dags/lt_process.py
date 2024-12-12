@@ -1,10 +1,10 @@
 from airflow.decorators import dag, task
+
 from config.default_args import default_args
 
 markdown_text = """
 ### LT Process for Cars Data
 """
-
 
 @dag(
     dag_id="process_lt_cars_data",
@@ -78,15 +78,19 @@ def process_lt_cars_data():
         from sklearn.experimental import enable_iterative_imputer
         from feature_engineering.cars_pipeline import CarsPipeline
         from airflow.models import Variable
+        from models.prediction_key import PredictionKey
+        from joblib import load
 
         logger = logging.getLogger("airflow.task")
         logger.info("X_train_path: %s", X_train_path)
         logger.info("X_test_path: %s", X_test_path)
 
         X_train = wr.s3.read_csv(X_train_path)
+        y_train = wr.s3.read_csv(Variable.get("cars_y_train_location"))
         X_test = wr.s3.read_csv(X_test_path)
 
         final_pipeline = CarsPipeline()
+        final_pipeline.fit(X_train, y_train)
         X_train_processed = final_pipeline.fit_transform_df(X_train)
         X_test_processed = final_pipeline.transform_df(X_test)
 
@@ -96,13 +100,11 @@ def process_lt_cars_data():
         combined_processed = pd.concat([X_train_processed, X_test_processed])
         wr.s3.to_csv(df=combined_processed, path=Variable.get("cars_X_combined_processed_location"), index=False)
 
-        # Serialize the final_pipeline using joblib
         pipeline_path = "/tmp/final_pipeline.joblib"
         try:
             joblib.dump(final_pipeline, pipeline_path)
             logger.info("Pipeline serialized to %s", pipeline_path)
 
-            # Save the serialized pipeline to S3
             s3 = boto3.client('s3')
             bucket_name = "data"
             object_key = Variable.get("pipeline_object_key")
