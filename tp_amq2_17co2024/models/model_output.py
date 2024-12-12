@@ -17,17 +17,17 @@ class ModelOutput(BaseModel):
     This class defines the output fields returned by the cars prediction model along with their descriptions
     and possible values.
 
-    :param output: Output of the model. Price of used car.
+    :param selling_price: Output of the model. Price of used car.
     """
 
-    output: float = Field(
+    selling_price: float = Field(
         description="Output of the model. Price of used car",
     )
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "output": 123,
+                    "selling_price": 123,
                 }
             ]
         }

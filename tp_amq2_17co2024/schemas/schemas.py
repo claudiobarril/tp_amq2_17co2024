@@ -22,7 +22,7 @@ class ModelInput(BaseModel):
     seats: int = Field(..., example=5)
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "Honda City 1.5 GXI",
                 "year": 2004,
@@ -39,4 +39,4 @@ class ModelInput(BaseModel):
             }
         }
 class ModelOutput(BaseModel):
-    output: float
+    selling_price: float

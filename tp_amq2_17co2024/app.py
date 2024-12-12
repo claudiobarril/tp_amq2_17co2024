@@ -1,53 +1,37 @@
-import hashlib
+import asyncio
+import logging
 
 import boto3
-import mlflow
-import logging
-import numpy as np
 import pandas as pd
 import redis
-
 from fastapi import FastAPI, Body, BackgroundTasks, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
-from typing_extensions import Annotated
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from joblib import load
+from typing_extensions import Annotated
 
-from models.model_input import ModelInput
 from models.model_loader import ModelLoader
 from models.model_output import ModelOutput
-# from pipeline_ import final_pipeline
-from joblib import load
-from fastapi.middleware.cors import CORSMiddleware
-import asyncio
-from schemas import ModelInput, ModelOutput
 from models.prediction_key import PredictionKey
-import boto3
+from schemas import ModelInput, ModelOutput
+import batch_prediction
 from sklearn.experimental import enable_iterative_imputer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 s3_bucket = 'data'
-s3_key = 'pipeline/final_pipeline.joblib'
-local_path = '/tmp/final_pipeline.joblib'
+pipeline_path = '/tmp/final_pipeline.joblib'
 
-s3_client = boto3.client('s3',
-                         aws_access_key_id='minio',
-                         aws_secret_access_key='minio123',
+s3_client = boto3.client('s3', aws_access_key_id='minio', aws_secret_access_key='minio123',
                          endpoint_url='http://s3:9000')
-
-s3_client.download_file(s3_bucket, s3_key, local_path)
-
-final_pipeline = load(local_path)
-
+s3_client.download_file(s3_bucket, 'pipeline/final_pipeline.joblib', pipeline_path)
+final_pipeline = load(pipeline_path)
 
 # Cargar el modelo y el pipeline
 loader = ModelLoader("best_catboost_model", "cars_best_model")
 r = redis.Redis(host='redis', port=6379, decode_responses=True)
 
-# Instancia de la aplicación FastAPI con descripción
 app = FastAPI(
     title="Car Price Predictor API",
     description=(
@@ -55,16 +39,17 @@ app = FastAPI(
         "Envía las características del auto y recibe una predicción del precio."
     ),
     version="1.0.0",
-    
+
 )
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.on_event("startup")
 def startup_event():
@@ -74,6 +59,7 @@ def startup_event():
         logger.info("Modelo cargado correctamente al iniciar la aplicación.")
     except Exception as e:
         logger.error(f"Error al cargar el modelo durante el inicio: {e}")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
@@ -92,13 +78,14 @@ async def read_root():
     """
 
 
+# noinspection PyAsyncCall
 @app.post("/predict/", response_model=ModelOutput)
 async def predict(
-    features: Annotated[
-        ModelInput,
-        Body(embed=True),
-    ],
-    background_tasks: BackgroundTasks,
+        features: Annotated[
+            ModelInput,
+            Body(embed=True),
+        ],
+        background_tasks: BackgroundTasks,
 ):
     """
     Endpoint para predecir el precio de un auto usado.
@@ -123,6 +110,9 @@ async def predict(
         logger.info(f'Predecir {hashes[0]}')
         if model_output is None:
             y_pred = "0"
+            logger.info(f"no existe predicción para {hashes[0]}")
+            logger.info(f"agregando solicitud para futuras predicciones")
+            asyncio.create_task(asyncio.to_thread(batch_prediction.add_request, s3_client, features_df, ))
         else:
             y_pred = model_output
 
@@ -132,9 +122,8 @@ async def predict(
         # y_pred = np.exp(prediction)
         #
         logger.info(f"Predicción realizada con éxito. [{y_pred}]")
-        logger.info(f"key [{keys[0]}] hash[{hashes[0]}]")
 
-        return ModelOutput(output=y_pred)
+        return ModelOutput(selling_price=y_pred)
 
     except ValueError as e:
         logger.error(f"Error de validación: {e}")
@@ -143,6 +132,7 @@ async def predict(
     except Exception as e:
         logger.error(f"Error durante la predicción: {e}")
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():

@@ -8,15 +8,12 @@ from models.prediction_key import PredictionKey
 import boto3
 import awswrangler as wr
 from airflow.models import Variable
-import logging
 
 REDIS_HOST = 'redis'
 REDIS_PORT = 6379
 
 
 def batch_processing(**kwargs):
-    logger = logging.getLogger("airflow.task")
-
     s3_bucket = 'data'
     s3_key = 'artifact/best_catboost_model.json'
     local_path = '/tmp/best_catboost_model.json'
@@ -43,8 +40,6 @@ def batch_processing(**kwargs):
 
     dict_redis = {}
     for idx, row in X_batch.iterrows():
-        if row['key'].startswith("0.3879969604110 -0.658581042244"):
-            logger.info(f'hash[{row["hash"]}] key[{row["key"]}]')
         dict_redis[row['hash']] = labels[idx]
 
     ti = kwargs['ti']

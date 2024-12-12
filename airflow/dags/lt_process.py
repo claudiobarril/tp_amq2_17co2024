@@ -93,6 +93,8 @@ def process_lt_cars_data():
         final_pipeline.fit(X_train, y_train)
         X_train_processed = final_pipeline.fit_transform_df(X_train)
         X_test_processed = final_pipeline.transform_df(X_test)
+        # acá buscar un nuevo archivo que tenga las X nuevas que estuvo juntando el frontend. Pasarlo por el pipeline y luego combinarlos en combined_processed
+
 
         wr.s3.to_csv(df=X_train_processed, path=Variable.get("cars_X_train_processed_location"), index=False)
         wr.s3.to_csv(df=X_test_processed, path=Variable.get("cars_X_test_processed_location"), index=False)
