@@ -25,12 +25,10 @@ from models.prediction_key import PredictionKey
 import boto3
 from sklearn.experimental import enable_iterative_imputer
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# Configuración de boto3 para MinIO
 s3_bucket = 'data'
 s3_key = 'pipeline/final_pipeline.joblib'
 local_path = '/tmp/final_pipeline.joblib'
@@ -47,9 +45,7 @@ final_pipeline = load(local_path)
 
 # Cargar el modelo y el pipeline
 loader = ModelLoader("best_catboost_model", "cars_best_model")
-final_pipeline = load("s3://data/pipeline/final_pipeline.joblib")
 r = redis.Redis(host='redis', port=6379, decode_responses=True)
-
 
 # Instancia de la aplicación FastAPI con descripción
 app = FastAPI(
