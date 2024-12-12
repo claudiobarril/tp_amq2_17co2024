@@ -89,17 +89,30 @@ def process_lt_cars_data():
         y_train = wr.s3.read_csv(Variable.get("cars_y_train_location"))
         X_test = wr.s3.read_csv(X_test_path)
 
+        if pd.notna(X_test.iloc[0]).all():  # Check for missing values in first row
+            logger.info("First complete record of X_train:\n%s", X_test.iloc[1])
+        else:
+            logger.warning("First row of X_train is incomplete.")
+
         final_pipeline = CarsPipeline()
         final_pipeline.fit(X_train, y_train)
         X_train_processed = final_pipeline.fit_transform_df(X_train)
         X_test_processed = final_pipeline.transform_df(X_test)
-        # acá buscar un nuevo archivo que tenga las X nuevas que estuvo juntando el frontend. Pasarlo por el pipeline y luego combinarlos en combined_processed
 
+        key2, hashes2 = PredictionKey().from_pipeline(final_pipeline.transform(X_test.iloc[1:2]))
+        logger.info(f'prediction hash [{hashes2[0]}] key[{key2[0]}]')
 
         wr.s3.to_csv(df=X_train_processed, path=Variable.get("cars_X_train_processed_location"), index=False)
         wr.s3.to_csv(df=X_test_processed, path=Variable.get("cars_X_test_processed_location"), index=False)
 
-        combined_processed = pd.concat([X_train_processed, X_test_processed])
+        try:
+            X_to_predict = wr.s3.read_csv(Variable.get("cars_X_to_predict_location"))
+            X_to_predict_processed = final_pipeline.transform_df(X_to_predict)
+            combined_processed = pd.concat([X_train_processed, X_test_processed, X_to_predict_processed])
+        except wr.exceptions.NoFilesFound as e:
+            logger.info('no request to predict pending')
+            combined_processed = pd.concat([X_train_processed, X_test_processed])
+
         wr.s3.to_csv(df=combined_processed, path=Variable.get("cars_X_combined_processed_location"), index=False)
 
         pipeline_path = "/tmp/final_pipeline.joblib"
