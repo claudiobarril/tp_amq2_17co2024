@@ -106,8 +106,7 @@ def process_lt_cars_data():
         wr.s3.to_csv(df=X_test_processed, path=Variable.get("cars_X_test_processed_location"), index=False)
 
         try:
-            X_to_predict = wr.s3.read_csv(Variable.get("cars_X_to_predict_location"))
-            X_to_predict_processed = final_pipeline.transform_df(X_to_predict)
+            X_to_predict_processed = wr.s3.read_csv(Variable.get("cars_X_to_predict_location"))
             combined_processed = pd.concat([X_train_processed, X_test_processed, X_to_predict_processed])
         except wr.exceptions.NoFilesFound as e:
             logger.info('no request to predict pending')
