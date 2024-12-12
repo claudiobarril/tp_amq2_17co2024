@@ -101,19 +101,10 @@ services:
       /bin/sh -c '
       sleep 5;
       /usr/bin/mc config host add s3 http://s3:9000 ${MINIO_ACCESS_KEY:-minio} ${MINIO_SECRET_ACCESS_KEY:-minio123} --api S3v4;
-      
-      # Create MLFLOW_BUCKET_NAME if it doesn't exist
-      if ! /usr/bin/mc ls s3/${MLFLOW_BUCKET_NAME:-mlflow} >/dev/null 2>&1; then
-        /usr/bin/mc mb s3/${MLFLOW_BUCKET_NAME:-mlflow};
-        /usr/bin/mc policy set download s3/${MLFLOW_BUCKET_NAME:-mlflow};
-      fi;
-
-      # Create DATA_REPO_BUCKET_NAME if it doesn't exist
-      if ! /usr/bin/mc ls s3/${DATA_REPO_BUCKET_NAME:-data} >/dev/null 2>&1; then
-        /usr/bin/mc mb s3/${DATA_REPO_BUCKET_NAME:-data};
-        /usr/bin/mc policy set download s3/${DATA_REPO_BUCKET_NAME:-data};
-      fi;
-
+      [[ ! -z "`/usr/bin/mc ls s3 | grep challenge`" ]] || /usr/bin/mc mb s3/${MLFLOW_BUCKET_NAME:-mlflow};
+      /usr/bin/mc policy download s3/${MLFLOW_BUCKET_NAME:-mlflow};
+      [[ ! -z "`/usr/bin/mc ls s3 | grep challenge`" ]] || /usr/bin/mc mb s3/${DATA_REPO_BUCKET_NAME:-data};
+      /usr/bin/mc policy download s3/${DATA_REPO_BUCKET_NAME:-data};
       exit 0;
       '
 
