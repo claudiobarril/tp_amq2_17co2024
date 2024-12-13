@@ -18,3 +18,6 @@ RUN pip install poetry
 RUN poetry config virtualenvs.create false && poetry install
 
 EXPOSE 8800
+EXPOSE 8501
+
+CMD bash -c "poetry run uvicorn app:app --host 0.0.0.0 --port 8800 & poetry run streamlit run front.py --server.port 8501 --server.address 0.0.0.0"

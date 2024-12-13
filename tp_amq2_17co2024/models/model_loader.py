@@ -1,6 +1,6 @@
 import mlflow
 import pickle
-import os
+import logging
 
 class ModelLoader():
 
@@ -9,20 +9,24 @@ class ModelLoader():
         self.alias = alias
 
     def load_model(self):
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
         try:
-            mlflow.set_tracking_uri('http://mlflow:5001')
+            mlflow.set_tracking_uri('http://mlflow:5002')
             # Load the trained model from MLflow
             client_mlflow = mlflow.MlflowClient()
 
             model_data_mlflow = client_mlflow.get_model_version_by_alias(self.model_name, self.alias)
             self.model_ml = mlflow.sklearn.load_model(model_data_mlflow.source)
             self.version_model_ml = int(model_data_mlflow.version)
+            logger.info("Modelo cargado correctamente desde MLFlow.")
         except:
             # If there is no registry in MLflow, open the default model
             file_ml = open('/app/models/best_xgboost_model.pkl', 'rb')
             self.model_ml = pickle.load(file_ml)
             file_ml.close()
             self.version_model_ml = 0
+            logger.info("Modelo cargado correctamente desde disco.")
 
     def check_model(self):
         """
