@@ -96,6 +96,11 @@ Ejecute el siguiente comando para iniciar solo los servicios necesarios para Air
 docker-compose -f docker-compose.yml --profile airflow up --build
 ```
 
+Verificar que se hayan levantado los servicios:
+- S3 (Minio): http://localhost:9001
+- AirFlow: http://localhost:8080
+- MLFlow: http://localhost:5002
+
 ### 2. Ejecutar los DAGs necesarios
 
 Acceda a la interfaz web de Airflow en [http://localhost:8080](http://localhost:8080). Asegúrese de que los DAGs estén habilitados y ejecútelos en el siguiente orden:
@@ -104,7 +109,6 @@ Acceda a la interfaz web de Airflow en [http://localhost:8080](http://localhost:
 2. **process_lt_cars_data**: Carga desde S3 los datos extraídos y las predicciones realizadas, los procesa y guarda el pipeline entrenado en S3 para su uso posterior.
 3. **train_the_model**: Entrena un modelo XGBoost, que ha sido seleccionado como principal tras iteraciones previas del equipo.
 4. **batch_processing_model**: Guarda en Redis todos los datos de Kaggle y las predicciones realizadas hasta el momento. Este paso no es necesario, pero si recomendable para contar ya con una buena base de predicciones pre-calculadas.
-
 
 ### 3. Verificar Resultados
 
@@ -119,6 +123,10 @@ Una vez completados los pasos anteriores, puede levantar el perfil `predictor`:
 docker-compose -f docker-compose.yml --profile predictor up --build
 ```
 
+Verificar que se haya levantado la aplicación:
+- FastAPI: http://localhost:8800
+- Frontend: http://localhost:8501
+
 ### Como levantar todos los servicios
 
 Si ya cuenta con un pipeline y un modelo disponibles, puede simplemente levantar todos los servicios utilizando el perfil `all`:
@@ -127,7 +135,12 @@ Si ya cuenta con un pipeline y un modelo disponibles, puede simplemente levantar
 docker-compose -f docker-compose.yml --profile predictor up --build
 ```
 
-Esto incluirá los servicios de FastAPI y el frontend para realizar predicciones.
+Esto incluirá los servicios de FastAPI y el frontend para realizar predicciones. El total de servicios levantados son:
+- S3 (Minio): http://localhost:9001
+- AirFlow: http://localhost:8080
+- MLFlow: http://localhost:5002
+- FastAPI: http://localhost:8800
+- Frontend: http://localhost:8501
 
 ## Comandos Útiles
 
@@ -139,54 +152,6 @@ Esto incluirá los servicios de FastAPI y el frontend para realizar predicciones
   ```bash
   docker-compose logs <nombre_servicio>
   ```
-
-## Estructura del Proyecto - (REVISAR)
-
-```
-├── airflow            
-│   └── config         
-├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
-├── README.md          <- The top-level README for developers using this project.
-│
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
-│
-├── models             <- Trained and serialized models, model predictions, or model summaries
-│
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         tp_amq2_17co2024 and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
-└── tp_amq2_17co2024   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes tp_amq2_17co2024 a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── plots.py                <- Code to create visualizations
-```
 
 ## Notas
 
