@@ -6,7 +6,7 @@ st.title("🚗 Predicción de Precio de Autos Usados")
 st.write("Complete los detalles del auto para obtener una predicción de su precio.")
 
 # Imagen o separador visual
-st.image("https://via.placeholder.com/800x200?text=Predicción+de+Autos", use_container_width=True)
+st.image("https://via.placeholder.com/800x200?text=Predicción+de+Autos")
 st.markdown("---")
 
 # Formulario para ingresar datos del auto
