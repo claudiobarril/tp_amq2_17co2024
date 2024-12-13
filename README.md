@@ -1,12 +1,146 @@
-# Aprendizaje de Máquina II
+# Predictor del precio de automóviles - **ML Models and something more Inc.**
 
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
-</a>
+## Descripción del Proyecto
 
-TP
+Este proyecto tiene como objetivo ayudar a los usuarios a predecir el precio de venta de su automóvil usado, a través de una interfaz amigable y utilizando la potencia de la inteligencia artificial.
 
-## Project Organization
+## Requisitos Previos
+
+- Docker y Docker Compose instalados.
+- Variables de entorno configuradas.
+
+## Configuración Inicial
+
+### Variables de Entorno
+
+Cree un archivo `.env` en la raíz del proyecto con las siguientes variables:
+
+```env
+# airflow configuration
+AIRFLOW_UID=50000
+AIRFLOW_GID=0
+AIRFLOW_PROJ_DIR=./airflow
+AIRFLOW_PORT=8080
+_AIRFLOW_WWW_USER_USERNAME=airflow
+_AIRFLOW_WWW_USER_PASSWORD=airflow
+
+# postgres configuration
+PG_USER=airflow
+PG_PASSWORD=airflow
+PG_DATABASE=airflow
+PG_PORT=5432
+
+# mlflow configuration
+MLFLOW_PORT=5002
+MLFLOW_S3_ENDPOINT_URL=http://s3:9000
+
+# minio configuration
+MINIO_ACCESS_KEY=minio
+MINIO_SECRET_ACCESS_KEY=minio123
+MINIO_PORT=9000
+MINIO_PORT_UI=9001
+MLFLOW_BUCKET_NAME=mlflow
+DATA_REPO_BUCKET_NAME=data
+
+# fastapi configuration
+FASTAPI_PORT=8800
+
+# fastapi configuration
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
+
+## Servicios Incluidos
+
+- **Airflow**: [http://localhost:8080](http://localhost:8080) 
+  - DAGs disponibles:
+    - `el_process`: Extracción y carga de datos desde Kaggle a S3.
+    - `lt_process`: Procesamiento de datos y actualización de pipelines.
+    - `train_the_model`: Entrenamiento del modelo XGBoost.
+    - `train_the_catboost_model`: Entrenamiento del modelo CatBoost.
+    - `retrain_the_model`: Reentrenamiento del modelo XGBoost.
+    - `retrain_the_catboost_model`: Reentrenamiento del modelo CatBoost.
+    - `daily_batch_processing`: Procesamiento batch diario de solicitudes.
+    - `batch_processing`: Procesamiento completo de datos históricos.
+    - `batch_processing_catboost`: Procesamiento completo con CatBoost.
+- **MLflow**: [http://localhost:5002](http://localhost:5002)
+  - Experimento: `Cars`
+  - Modelos:
+    - `xgboost_dev` y `xgboost_prod`
+    - `catboost_dev` y `catboost_prod`
+- **S3 (Minio)**: [http://localhost:9001](http://localhost:9001)
+  - Estructura:
+    - `data/raw`: Dataset crudo extraído de Kaggle.
+    - `data/final`: Datos procesados y predicciones realizadas.
+    - `pipeline`: Pipelines entrenados para transformación de datos.
+- **FastAPI Backend**: [http://localhost:8800](http://localhost:8800)
+  - Endpoints disponibles:
+    - `GET /`: Página de inicio del proyecto.
+    - `POST /predict`: Predicción a partir de datos enviados por los usuarios.
+- **Frontend**: [http://localhost:8800](http://localhost:8800)
+  - Formulario amigable para la carga de datos de predicción.
+
+## Pasos de Ejecución
+
+### Primera vez
+
+Dado que la aplicación predictora necesita de un pipeline entrenado para pre-procesar los datos de entrada del usuario,
+y un modelo predictivo, lo ideal es levantar primero airflow y ejecutar los procesos que entrenan el mejor modelo con el
+que se cuenta actualmente.
+
+### 1. Levantar el Perfil `airflow`
+
+Ejecute el siguiente comando para iniciar solo los servicios necesarios para Airflow:
+
+```bash
+docker-compose -f docker-compose.yml --profile airflow up --build
+```
+
+### 2. Ejecutar los DAGs necesarios
+
+Acceda a la interfaz web de Airflow en [http://localhost:8080](http://localhost:8080). Asegúrese de que los DAGs estén habilitados y ejecútelos en el siguiente orden:
+
+1. **process_el_cars_data**: Extrae el dataset actualizado desde Kaggle y lo carga en el bucket S3.
+2. **process_lt_cars_data**: Carga desde S3 los datos extraídos y las predicciones realizadas, los procesa y guarda el pipeline entrenado en S3 para su uso posterior.
+3. **train_the_model**: Entrena un modelo XGBoost, que ha sido seleccionado como principal tras iteraciones previas del equipo.
+4. **batch_processing_model**: Guarda en Redis todos los datos de Kaggle y las predicciones realizadas hasta el momento. Este paso no es necesario, pero si recomendable para contar ya con una buena base de predicciones pre-calculadas.
+
+
+### 3. Verificar Resultados
+
+- **Pipeline**: Verifique que el pipeline esté disponible en su bucket S3 en la carpeta correspondiente.
+- **Modelo**: Confirme que el modelo `cars_model_prod` esté registrado en MLflow.
+
+### 4. Levantar el Perfil `predictor`
+
+Una vez completados los pasos anteriores, puede levantar el perfil `predictor`:
+
+```bash
+docker-compose -f docker-compose.yml --profile predictor up --build
+```
+
+### Como levantar todos los servicios
+
+Si ya cuenta con un pipeline y un modelo disponibles, puede simplemente levantar todos los servicios utilizando el perfil `all`:
+
+```bash
+docker-compose -f docker-compose.yml --profile predictor up --build
+```
+
+Esto incluirá los servicios de FastAPI y el frontend para realizar predicciones.
+
+## Comandos Útiles
+
+- Detener todos los servicios:
+  ```bash
+  docker-compose down
+  ```
+- Ver logs de un servicio específico:
+  ```bash
+  docker-compose logs <nombre_servicio>
+  ```
+
+## Estructura del Proyecto - (REVISAR)
 
 ```
 ├── LICENSE            <- Open-source license if one is chosen
@@ -57,46 +191,12 @@ TP
     └── plots.py                <- Code to create visualizations
 ```
 
---------
+## Notas
 
-# Criterios de aprobación
+- Asegúrese de contar con los permisos necesarios para acceder al bucket S3.
+- Revise que los DAGs estén correctamente configurados antes de su ejecución.
+- Verifique que los datos y modelos estén correctamente registrados en las ubicaciones esperadas.
 
-## Objetivos de la materia:
+## Contacto
 
-El objetivo está centrado en disponibilizar las herramientas de machine learning en un entorno productivo, utilizando herramientas de MLOPS.
-
-## Evaluación
-
-La evaluación de los conocimientos impartidos durante las clases será a modo de entrega de un trabajo práctico final. El trabajo es grupal (máximo 6 personas, mínimo 2 personas).
-
-La idea de este trabajo es suponer que trabajamos para **ML Models and something more Inc.**, la cual ofrece un servicio que proporciona modelos mediante una REST API. Internamente, tanto para realizar tareas de DataOps como de MLOps, la empresa cuenta con Apache Airflow y MLflow. También dispone de un Data Lake en S3.
-
-Ofrecemos tres tipos de evaluaciones:
-
- * **Nivel fácil** (nota entre 4 y 5): Hacer funcionar el ejemplo de aplicación [example_implementation](https://github.com/facundolucianna/amq2-service-ml/tree/example_implementation). Filmar un video del sistema funcionando:
-   * Ejecutar en Airflow el DAG llamado `process_etl_heart_data`
-   * Ejecuta la notebook (ubicada en `notebook_example`) para realizar la búsqueda de hiperparámetros y entrenar el mejor modelo.
-   * Utilizar la REST-API del modelo.
-   * Ejecutar en Airflow el DAG llamado `process_etl_heart_data` y luego `retrain_the_model`.
-   * En todos estos pasos verificar lo que muestra MLFlow.
- * **Nivel medio** (nota entre 6 y 8): Implementar en local usando Metaflow el ciclo de desarrollo del modelo que desarrollaron en Aprendizaje de Máquina I y generar un archivo para predicción en bache (un csv o un archivo de SQLite). Sería implementar algo parecido a [batch_example](https://github.com/facundolucianna/amq2-service-ml/tree/batch_example), pero sin la parte del servicio de Docker. La nota puede llegar a 10 si implementan una base de datos (ya sea KVS u otro tipo) con los datos de la predicción en bache.
- * **Nivel alto** (nota entre 8 y 10): Implementar el modelo que desarrollaron en Aprendizaje de Máquina I en este ambiente productivo. Para ello, pueden usar los recursos que consideren apropiado. Los servicios disponibles de base son Apache Airflow, MLflow, PostgresSQL, MinIO, FastAPI. Todo está montado en Docker, por lo que además deben instalado Docker. 
-
-### Repositorio con el material
-
-Las herramientas para poder armar el proyecto se encuentra en: 
-[https://github.com/facundolucianna/amq2-service-ml](https://github.com/facundolucianna/amq2-service-ml).
-
-Además, dejamos un ejemplo de aplicación en el branch [example_implementation](https://github.com/facundolucianna/amq2-service-ml/tree/example_implementation).
-
-## Criterios de aprobación
-
-Los criterios de aprobación son los siguientes:
-
-1. La entrega consiste en un repositorio en Github o Gitlab con la implementación y documentación. Salvo el nivel fácil que es un link al video.
-2. La fecha de entrega máxima es 7 días después de la última clase.
-3. El trabajo es obligatorio ser grupal para evaluar la dinámica de trabajo en un equipo de trabajo tipico.
-4. La implementación debe de estar de acuerdo al nivel elegido. Sí es importante además de la implementación, hacer una buena documentación.
-5. Son libres de incorporar o cambiar de tecnologías, pero es importante que lo implementado tenga un servicio de orquestación y algún servicio de ciclo de vida de modelos.   
-6. La entrega es por medio del aula virtual de la asignatura y solo debe enviarse el link al repositorio.
-
+Para preguntas o soporte, contacte al equipo de desarrollo.

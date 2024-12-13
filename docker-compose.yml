@@ -4,6 +4,7 @@ x-airflow-common: &airflow-common
   profiles:
     - airflow
     - all
+    - predictor
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${PG_USER:-airflow}:${PG_PASSWORD:-airflow}@postgres/${PG_DATABASE:-airflow}
@@ -44,6 +45,7 @@ services:
       - airflow
       - mlflow
       - all
+      - predictor
     ports:
       - "${PG_PORT:-5432}:5432"
     networks:
@@ -68,6 +70,7 @@ services:
       - mlflow
       - airflow
       - all
+      - predictor
     ports:
       - "${MINIO_PORT:-9000}:9000"
       - "${MINIO_PORT_UI:-9001}:9001"
@@ -116,6 +119,7 @@ services:
     profiles:
       - mlflow
       - all
+      - predictor
     depends_on:
       postgres:
         condition: service_healthy
@@ -151,6 +155,7 @@ services:
       - ./tp_amq2_17co2024:/app/tp_amq2_17co2024/
     profiles:
       - all
+      - predictor
     depends_on:
       mlflow:
         condition: service_healthy
@@ -308,12 +313,15 @@ services:
 
   redis:
     image: redis:latest
+    container_name: predictor_redis
     restart: always
     networks:
       - frontend
       - backend
     profiles:
       - all
+      - mlflow
+      - predictor
     ports:
       - "6379:6379"
     volumes:
