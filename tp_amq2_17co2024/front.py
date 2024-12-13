@@ -1,19 +1,28 @@
 import streamlit as st
 import requests
 
-# Título de la aplicación
-st.title("🚗 Predicción de Precio de Autos Usados")
+st.set_page_config(
+    page_title="Cotizar auto",
+    page_icon="🚗",
+    layout="centered",
+    initial_sidebar_state="auto"
+)
+
+st.title("🚗 Predictor de Precio de Autos Usados")
+
+file_path = "assets/used-cars-dealer-meme.png"
+
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image(file_path)
+
+st.text("\n" * 2)
 st.write("Complete los detalles del auto para obtener una predicción de su precio.")
+st.text("\n")
 
-# Imagen o separador visual
-st.image("https://via.placeholder.com/800x200?text=Predicción+de+Autos")
-st.markdown("---")
-
-# Formulario para ingresar datos del auto
 with st.form("car_form"):
     st.subheader("Información General del Auto")
     
-    # Sección de información general
     col1, col2 = st.columns(2)
     with col1:
         name = st.text_input("🔹 Nombre del Auto", "Honda City 1.5 GXI")
@@ -30,7 +39,6 @@ with st.form("car_form"):
     st.markdown("---")
     st.subheader("Especificaciones Técnicas")
 
-    # Sección de especificaciones técnicas
     col3, col4 = st.columns(2)
     with col3:
         mileage = st.text_input("🔹 Rendimiento (kmpl)", "12.8 kmpl")
@@ -40,12 +48,9 @@ with st.form("car_form"):
         max_power = st.text_input("🔹 Potencia Máxima (bhp)", "100 bhp")
         torque = st.text_input("🔹 Torque", "113.1kgm@ 4600rpm")
 
-    # Botón para enviar los datos
     submitted = st.form_submit_button("🚀 Predecir Precio")
 
-# Si se envía el formulario
 if submitted:
-    # Datos a enviar al backend
     payload = {
         "name": name,
         "year": year,
@@ -61,15 +66,13 @@ if submitted:
         "seats": seats
     }
 
-    # URL del backend
-    backend_url = "http://localhost:8000/predict/"
+    backend_url = "http://localhost:8800/predict/"
 
-    # Llamada a la API FastAPI
     try:
         response = requests.post(backend_url, json={"features": payload})
         if response.status_code == 200:
             result = response.json()
-            st.success(f"💰 El precio estimado es: **${result['output']:.2f}**")
+            st.success(f"💰 El precio estimado es: **${result['selling_price']:.2f}**")
         else:
             st.error(f"❌ Error en la predicción: {response.json().get('detail')}")
     except Exception as e:

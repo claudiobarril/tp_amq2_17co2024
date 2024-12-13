@@ -1,39 +1,51 @@
 import asyncio
 import logging
-
+import os
 import boto3
+import numpy as np
 import pandas as pd
 import redis
+import batch_prediction
+
 from fastapi import FastAPI, Body, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from joblib import load
 from typing_extensions import Annotated
+from dotenv import load_dotenv
 
 from models.model_loader import ModelLoader
 from models.model_output import ModelOutput
 from models.prediction_key import PredictionKey
-from schemas import ModelInput, ModelOutput
-from models.prediction_key import PredictionKey
-import batch_prediction
+from schemas import ModelInput
 from sklearn.experimental import enable_iterative_imputer
 
+# Configuración de logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-s3_bucket = 'data'
-pipeline_path = '/tmp/final_pipeline.joblib'
+# Cargar variables de entorno
+load_dotenv()
 
-s3_client = boto3.client('s3', aws_access_key_id='minio', aws_secret_access_key='minio123',
-                         endpoint_url='http://s3:9000')
-s3_client.download_file(s3_bucket, 'pipeline/final_pipeline.joblib', pipeline_path)
-final_pipeline = load(pipeline_path)
+# Configuración global
+S3_BUCKET = os.getenv("S3_BUCKET", "data")
+PIPELINE_OBJECT_KEY = os.getenv("PIPELINE_OBJECT_KEY", "pipeline/final_pipeline.joblib")
+PIPELINE_DOWNLOAD_PATH = "/tmp/final_pipeline.joblib"
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
-# Cargar el modelo y el pipeline
-loader = ModelLoader("best_catboost_model", "cars_best_model")
-final_pipeline = load("./final_pipeline.joblib")
-r = redis.Redis(host='redis', port=6379, decode_responses=True)
+# Inicialización de recursos globales
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv('MINIO_ACCESS_KEY'),
+    aws_secret_access_key=os.getenv('MINIO_SECRET_ACCESS_KEY'),
+    endpoint_url=os.getenv('MLFLOW_S3_ENDPOINT_URL')
+)
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+final_pipeline = None
+loader = ModelLoader("cars_model_prod", "champion")
 
+# Instancia de FastAPI
 app = FastAPI(
     title="Car Price Predictor API",
     description=(
@@ -41,8 +53,8 @@ app = FastAPI(
         "Envía las características del auto y recibe una predicción del precio."
     ),
     version="1.0.0",
-
 )
+
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
@@ -52,15 +64,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def load_pipeline():
+    """Descarga y carga el pipeline desde S3."""
+    global final_pipeline
+    try:
+        s3_client.download_file(S3_BUCKET, PIPELINE_OBJECT_KEY, PIPELINE_DOWNLOAD_PATH)
+        final_pipeline = load(PIPELINE_DOWNLOAD_PATH)
+        logger.info("Pipeline cargado correctamente.")
+    except Exception as e:
+        logger.error(f"Error al cargar el pipeline: {e}")
+        raise RuntimeError(f"Error al cargar el pipeline: {e}")
+
 
 @app.on_event("startup")
-def startup_event():
-    """Cargar el modelo al iniciar la aplicación."""
+async def startup_event():
+    """Inicializa dependencias y carga recursos al iniciar la aplicación."""
     try:
-        loader.load_model()
-        logger.info("Modelo cargado correctamente al iniciar la aplicación.")
+        # Cargar el pipeline
+        logger.info("Cargando pipeline...")
+        await asyncio.to_thread(load_pipeline)
+        logger.info("Pipeline cargado correctamente.")
+        # Cargar el modelo
+        logger.info("Cargando modelo...")
+        await asyncio.to_thread(loader.load_model)
+        logger.info("Modelo cargado correctamente.")
     except Exception as e:
-        logger.error(f"Error al cargar el modelo durante el inicio: {e}")
+        logger.error(f"Error al iniciar la aplicación: {e}")
+        raise e
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -109,18 +139,18 @@ async def predict(
         logger.info('Buscar keys en Redis')
         model_output = r.get(hashes[0])
 
-        logger.info(f'Predecir {hashes[0]}')
         if model_output is None:
-
-            y_pred = await asyncio.to_thread(loader.model_ml.predict, features_processed)
-            y_pred = "0"
-            logger.info(f"no existe predicción para {hashes[0]}")
-            logger.info(f"agregando solicitud para futuras predicciones")
-            asyncio.create_task(asyncio.to_thread(batch_prediction.add_request, s3_client, features_processed, ))
+            logger.info(f"No existe predicción para {hashes[0]}. Ejecutando predicción.")
+            pred = await asyncio.to_thread(loader.model_ml.predict, features_processed)
+            logger.info(f"Guardando solicitud para futuras predicciones.")
+            asyncio.create_task(
+                asyncio.to_thread(batch_prediction.add_request, s3_client, features_df)
+            )
+            y_pred = np.exp(pred)
         else:
             y_pred = model_output
-        logger.info(f"Predicción realizada con éxito. [{y_pred}]")
 
+        logger.info(f"Predicción realizada con éxito: {y_pred}")
         return ModelOutput(selling_price=y_pred)
 
     except ValueError as e:
