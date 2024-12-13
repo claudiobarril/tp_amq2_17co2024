@@ -14,6 +14,7 @@ from models.model_loader import ModelLoader
 from models.model_output import ModelOutput
 from models.prediction_key import PredictionKey
 from schemas import ModelInput, ModelOutput
+from models.prediction_key import PredictionKey
 import batch_prediction
 from sklearn.experimental import enable_iterative_imputer
 
@@ -30,6 +31,7 @@ final_pipeline = load(pipeline_path)
 
 # Cargar el modelo y el pipeline
 loader = ModelLoader("best_catboost_model", "cars_best_model")
+final_pipeline = load("./final_pipeline.joblib")
 r = redis.Redis(host='redis', port=6379, decode_responses=True)
 
 app = FastAPI(
@@ -55,7 +57,7 @@ app.add_middleware(
 def startup_event():
     """Cargar el modelo al iniciar la aplicación."""
     try:
-        # loader.load_model()
+        loader.load_model()
         logger.info("Modelo cargado correctamente al iniciar la aplicación.")
     except Exception as e:
         logger.error(f"Error al cargar el modelo durante el inicio: {e}")
@@ -109,18 +111,14 @@ async def predict(
 
         logger.info(f'Predecir {hashes[0]}')
         if model_output is None:
+
+            y_pred = await asyncio.to_thread(loader.model_ml.predict, features_processed)
             y_pred = "0"
             logger.info(f"no existe predicción para {hashes[0]}")
             logger.info(f"agregando solicitud para futuras predicciones")
             asyncio.create_task(asyncio.to_thread(batch_prediction.add_request, s3_client, features_processed, ))
         else:
             y_pred = model_output
-
-        #
-        # # Realizar la predicción en un hilo separado
-        # prediction = await asyncio.to_thread(loader.model_ml.predict, features_processed)
-        # y_pred = np.exp(prediction)
-        #
         logger.info(f"Predicción realizada con éxito. [{y_pred}]")
 
         return ModelOutput(selling_price=y_pred)

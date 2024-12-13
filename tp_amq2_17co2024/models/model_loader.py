@@ -1,5 +1,6 @@
 import mlflow
 import pickle
+import os
 
 class ModelLoader():
 
@@ -18,7 +19,7 @@ class ModelLoader():
             self.version_model_ml = int(model_data_mlflow.version)
         except:
             # If there is no registry in MLflow, open the default model
-            file_ml = open('../models/best_xgboost_model.pkl', 'rb')
+            file_ml = open('/app/models/best_xgboost_model.pkl', 'rb')
             self.model_ml = pickle.load(file_ml)
             file_ml.close()
             self.version_model_ml = 0
