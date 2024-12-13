@@ -1,5 +1,17 @@
 # Predictor del precio de automóviles - **ML Models and something more Inc.**
 
+## Integrantes
+
+- **Iñaki Larrumbide** (a1703)  
+  ✉️ [ilarrumbide10@gmail.com](mailto:ilarrumbide10@gmail.com)
+
+- **Claudio Barril** (a1708)  
+  ✉️ [claudiobarril@gmail.com](mailto:claudiobarril@gmail.com)
+
+- **Christian Pisani Testa** (a1715)  
+  ✉️ [christian.tpg@gmail.com](mailto:christian.tpg@gmail.com)
+
+
 ## Descripción del Proyecto
 
 Este proyecto tiene como objetivo ayudar a los usuarios a predecir el precio de venta de su automóvil usado, a través de una interfaz amigable y utilizando la potencia de la inteligencia artificial.
@@ -152,6 +164,12 @@ Esto incluirá los servicios de FastAPI y el frontend para realizar predicciones
   ```bash
   docker-compose logs <nombre_servicio>
   ```
+
+## Casos de uso:
+
+- Ante casos nuevos, la app no encontrará resultados en nuestra base de datos de predicciones calculadas. Por lo tanto, se realizará una predicción por primera vez y ese resultado se incorporará por lotes (batch) para actualizar nuestra base de predicciones y agilizar los tiempos de cómputo.
+
+- Si la predicción ya ha sido realizada, se consultará la base de datos de predicciones para obtener una respuesta exacta.
 
 ## Notas
 
