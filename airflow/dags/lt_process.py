@@ -1,10 +1,10 @@
 from airflow.decorators import dag, task
+
 from config.default_args import default_args
 
 markdown_text = """
 ### LT Process for Cars Data
 """
-
 
 @dag(
     dag_id="process_lt_cars_data",
@@ -78,31 +78,47 @@ def process_lt_cars_data():
         from sklearn.experimental import enable_iterative_imputer
         from feature_engineering.cars_pipeline import CarsPipeline
         from airflow.models import Variable
+        from models.prediction_key import PredictionKey
+        from joblib import load
 
         logger = logging.getLogger("airflow.task")
         logger.info("X_train_path: %s", X_train_path)
         logger.info("X_test_path: %s", X_test_path)
 
         X_train = wr.s3.read_csv(X_train_path)
+        y_train = wr.s3.read_csv(Variable.get("cars_y_train_location"))
         X_test = wr.s3.read_csv(X_test_path)
 
+        if pd.notna(X_test.iloc[0]).all():  # Check for missing values in first row
+            logger.info("First complete record of X_train:\n%s", X_test.iloc[1])
+        else:
+            logger.warning("First row of X_train is incomplete.")
+
         final_pipeline = CarsPipeline()
+        final_pipeline.fit(X_train, y_train)
         X_train_processed = final_pipeline.fit_transform_df(X_train)
         X_test_processed = final_pipeline.transform_df(X_test)
+
+        key2, hashes2 = PredictionKey().from_pipeline(final_pipeline.transform(X_test.iloc[1:2]))
+        logger.info(f'prediction hash [{hashes2[0]}] key[{key2[0]}]')
 
         wr.s3.to_csv(df=X_train_processed, path=Variable.get("cars_X_train_processed_location"), index=False)
         wr.s3.to_csv(df=X_test_processed, path=Variable.get("cars_X_test_processed_location"), index=False)
 
-        combined_processed = pd.concat([X_train_processed, X_test_processed])
+        try:
+            X_to_predict_processed = wr.s3.read_csv(Variable.get("cars_X_to_predict_location"))
+            combined_processed = pd.concat([X_train_processed, X_test_processed, X_to_predict_processed])
+        except wr.exceptions.NoFilesFound as e:
+            logger.info('no request to predict pending')
+            combined_processed = pd.concat([X_train_processed, X_test_processed])
+
         wr.s3.to_csv(df=combined_processed, path=Variable.get("cars_X_combined_processed_location"), index=False)
 
-        # Serialize the final_pipeline using joblib
         pipeline_path = "/tmp/final_pipeline.joblib"
         try:
             joblib.dump(final_pipeline, pipeline_path)
             logger.info("Pipeline serialized to %s", pipeline_path)
 
-            # Save the serialized pipeline to S3
             s3 = boto3.client('s3')
             bucket_name = "data"
             object_key = Variable.get("pipeline_object_key")

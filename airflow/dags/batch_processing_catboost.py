@@ -3,13 +3,13 @@ from config.default_args import default_args
 
 
 markdown_text = """
-### Batch processing with best model
+### Batch processing with Catboost model
 
 DAG for batch processing predictions
 """
 
 @dag(
-    dag_id="batch_processing_model",
+    dag_id="batch_processing_catboost_model",
     description="DAG for batch processing predictions",
     doc_md=markdown_text,
     tags=["Batch-processing", "Cars"],
@@ -17,14 +17,17 @@ DAG for batch processing predictions
     catchup=False,
 )
 def batch_processing_model():
-    """DAG for batch processing predictions using best model available."""
+    """DAG for batch processing predictions using CatBoostRegressor."""
 
     @task
     def batch_processing():
         from airflow.models import Variable
-        import mlflow.xgboost
+        import mlflow.catboost
         import numpy as np
         import awswrangler as wr
+        import logging
+
+        logger = logging.getLogger("airflow.task")
 
         # Set MLflow tracking URI
         mlflow_tracking_uri = Variable.get("mlflow_tracking_uri")
@@ -34,11 +37,11 @@ def batch_processing_model():
         # Load batch data
         X_batch = wr.s3.read_csv(Variable.get("cars_X_combined_processed_location"))
 
-        # Load model
+        # Load CatBoost model
         client_mlflow = mlflow.MlflowClient()
 
-        model_data_mlflow = client_mlflow.get_model_version_by_alias("cars_model_prod", "champion")
-        model = mlflow.xgboost.load_model(model_data_mlflow.source)
+        model_data_mlflow = client_mlflow.get_model_version_by_alias("cars_catboost_model_prod", "champion")
+        model = mlflow.catboost.load_model(model_data_mlflow.source)
 
         # Generate predictions
         out = model.predict(X_batch)
