@@ -153,6 +153,12 @@ Esto incluirá los servicios de FastAPI y el frontend para realizar predicciones
   docker-compose logs <nombre_servicio>
   ```
 
+## Casos de uso:
+
+- Ante casos nuevos, la app no encontrará resultados en nuestra base de datos de predicciones calculadas. Por lo tanto, se realizará una predicción por primera vez y ese resultado se incorporará por lotes (batch) para actualizar nuestra base de predicciones y agilizar los tiempos de cómputo.
+
+- Si la predicción ya ha sido realizada, se consultará la base de datos de predicciones para obtener una respuesta exacta.
+
 ## Notas
 
 - Asegúrese de contar con los permisos necesarios para acceder al bucket S3.
