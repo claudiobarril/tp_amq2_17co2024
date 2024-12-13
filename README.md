@@ -1,9 +1,16 @@
 # Predictor del precio de automóviles - **ML Models and something more Inc.**
 
-## Integrantes:
--a1703 Iñaki Larrumbide (ilarrumbide10@gmail.com)
--a1708 Claudio Barril (claudiobarril@gmail.com)
--a1715 Christian Pisani Testa (christian.tpg@gmail.com)
+## Integrantes
+
+- **Iñaki Larrumbide** (a1703)  
+  ✉️ [ilarrumbide10@gmail.com](mailto:ilarrumbide10@gmail.com)
+
+- **Claudio Barril** (a1708)  
+  ✉️ [claudiobarril@gmail.com](mailto:claudiobarril@gmail.com)
+
+- **Christian Pisani Testa** (a1715)  
+  ✉️ [christian.tpg@gmail.com](mailto:christian.tpg@gmail.com)
+
 
 ## Descripción del Proyecto
 
