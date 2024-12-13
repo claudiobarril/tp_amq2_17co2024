@@ -1,5 +1,10 @@
 # Predictor del precio de automóviles - **ML Models and something more Inc.**
 
+## Integrantes:
+-a1703 Iñaki Larrumbide (ilarrumbide10@gmail.com)
+-a1708 Claudio Barril (claudiobarril@gmail.com)
+-a1715 Christian Pisani Testa (christian.tpg@gmail.com)
+
 ## Descripción del Proyecto
 
 Este proyecto tiene como objetivo ayudar a los usuarios a predecir el precio de venta de su automóvil usado, a través de una interfaz amigable y utilizando la potencia de la inteligencia artificial.
