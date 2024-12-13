@@ -17,7 +17,7 @@ class ModelLoader():
             client_mlflow = mlflow.MlflowClient()
 
             model_data_mlflow = client_mlflow.get_model_version_by_alias(self.model_name, self.alias)
-            self.model_ml = mlflow.sklearn.load_model(model_data_mlflow.source)
+            self.model_ml = mlflow.xgboost.load_model(model_data_mlflow.source)
             self.version_model_ml = int(model_data_mlflow.version)
             logger.info("Modelo cargado correctamente desde MLFlow.")
         except:
