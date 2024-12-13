@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import boto3
+import numpy as np
 import pandas as pd
 import redis
 import batch_prediction
@@ -91,6 +92,7 @@ async def startup_event():
         logger.error(f"Error al iniciar la aplicación: {e}")
         raise e
 
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     """
@@ -139,11 +141,12 @@ async def predict(
 
         if model_output is None:
             logger.info(f"No existe predicción para {hashes[0]}. Ejecutando predicción.")
-            y_pred = await asyncio.to_thread(loader.model_ml.predict, features_processed)
+            pred = await asyncio.to_thread(loader.model_ml.predict, features_processed)
             logger.info(f"Guardando solicitud para futuras predicciones.")
             asyncio.create_task(
-                asyncio.to_thread(batch_prediction.add_request, s3_client, features_processed, )
+                asyncio.to_thread(batch_prediction.add_request, s3_client, features_df)
             )
+            y_pred = np.exp(pred)
         else:
             y_pred = model_output
 
