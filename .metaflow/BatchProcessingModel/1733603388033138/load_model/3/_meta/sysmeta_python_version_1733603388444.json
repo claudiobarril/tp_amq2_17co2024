@@ -1,1 +1,0 @@
-{"flow_id": "BatchProcessingModel", "run_number": "1733603388033138", "step_name": "load_model", "task_id": "3", "field_name": "python_version", "type": "python_version", "value": "3.12.4", "tags": ["attempt_id:0"], "user_name": "christianpisani", "ts_epoch": 1733603388444}
