@@ -13,6 +13,7 @@ This DAG trains the model based on existing data and puts it in production.
     doc_md=markdown_text,
     tags=["Train", "Cars"],
     default_args=default_args,
+    schedule_interval=None,
     catchup=False,
 )
 def train_the_model_with_catboost():

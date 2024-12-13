@@ -14,6 +14,7 @@ DAG for batch processing predictions
     doc_md=markdown_text,
     tags=["Batch-processing", "Cars"],
     default_args=default_args,
+    schedule_interval=None,
     catchup=False,
 )
 def batch_processing_model():

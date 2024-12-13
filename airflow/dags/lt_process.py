@@ -12,6 +12,7 @@ markdown_text = """
     doc_md=markdown_text,
     tags=["LT", "Cars"],
     default_args=default_args,
+    schedule_interval=None,
     catchup=False,
 )
 def process_lt_cars_data():
