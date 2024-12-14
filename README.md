@@ -165,17 +165,18 @@ Esto incluirá los servicios de FastAPI y el frontend para realizar predicciones
   docker-compose logs <nombre_servicio>
   ```
 
-## Casos de uso:
+## Casos de Uso:
+1. **Predicción para casos nuevos**:
+Cuando se recibe un caso que no está previamente registrado en la base de datos de predicciones, la aplicación genera una predicción inicial. Este resultado se almacena y se incluirá posteriormente en un procesamiento por lotes (batch) para actualizar la base de datos de predicciones, optimizando así los tiempos de respuesta para futuras consultas similares.
 
-- Ante casos nuevos, la app no encontrará resultados en nuestra base de datos de predicciones calculadas. Por lo tanto, se realizará una predicción por primera vez y ese resultado se incorporará por lotes (batch) para actualizar nuestra base de predicciones y agilizar los tiempos de cómputo.
+2. **Consulta de predicciones existentes**:
+Si la predicción solicitada ya ha sido realizada previamente, el sistema consulta directamente la base de datos de predicciones almacenadas, devolviendo una respuesta inmediata y exacta sin necesidad de realizar un nuevo cálculo.
 
-- Si la predicción ya ha sido realizada, se consultará la base de datos de predicciones para obtener una respuesta exacta.
+3. **Almacenamiento de nuevas predicciones en la base de datos**:  
+El sistema ejecuta un proceso diario llamado `daily_batch_processing`, el cual se encarga de almacenar en la base de datos todas las predicciones generadas el día anterior. Este mecanismo garantiza que las predicciones recientes estén disponibles para futuras consultas, reduciendo los tiempos de cómputo al evitar cálculos repetidos.
 
-## Notas
-
-- Asegúrese de contar con los permisos necesarios para acceder al bucket S3.
-- Revise que los DAGs estén correctamente configurados antes de su ejecución.
-- Verifique que los datos y modelos estén correctamente registrados en las ubicaciones esperadas.
+4. **Mejora continua de predicciones mediante re-entrenamiento del modelo**:  
+Cuando se dispone de datos actualizados en la fuente de información, el proceso de extracción y carga (`process_el_cars_data`) se encarga de obtenerlos y procesarlos. Si el modelo reentrenado demuestra un mejor desempeño en comparación con el modelo actual, todas las predicciones realizadas previamente por los usuarios serán recalculadas con el nuevo modelo y actualizadas en la base de datos, garantizando mayor precisión en futuros resultados.
 
 ## Contacto
 
