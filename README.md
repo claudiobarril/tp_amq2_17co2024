@@ -176,7 +176,11 @@ Si la predicción solicitada ya ha sido realizada previamente, el sistema consul
 El sistema ejecuta un proceso diario llamado `daily_batch_processing`, el cual se encarga de almacenar en la base de datos todas las predicciones generadas el día anterior. Este mecanismo garantiza que las predicciones recientes estén disponibles para futuras consultas, reduciendo los tiempos de cómputo al evitar cálculos repetidos.
 
 4. **Mejora continua de predicciones mediante re-entrenamiento del modelo**:  
-Cuando se dispone de datos actualizados en la fuente de información, el proceso de extracción y carga (`process_el_cars_data`) se encarga de obtenerlos y procesarlos. Si el modelo reentrenado demuestra un mejor desempeño en comparación con el modelo actual, todas las predicciones realizadas previamente por los usuarios serán recalculadas con el nuevo modelo y actualizadas en la base de datos, garantizando mayor precisión en futuros resultados.
+Cuando se dispone de datos actualizados en la fuente de información, se debería proceder con la siguiente ejecución de procesos:
+   1. Extracción y carga (`process_el_cars_data`):obtiene los nuevos datos de la fuente de información.
+   2. Carga y procesamiento (`process_lt_cars_data`): separa, procesa y agrupa los datos y las predicciones históricas solicitadas por los usuarios.
+   3. Re-entrenamiento del modelo (`train_the_model`): reentrena el modelo y lo reemplaza en caso de mostrar un mejor desempeño en comparación con el modelo actual.
+   4. Procesamiento batch (`batch_processing_model`): ejecuta el procesamiento batch de los datos nuevos así como los históricos solicitados, recalculadas con el nuevo modelo y actualizadas en la base de datos, garantizando mayor precisión en futuros resultados.
 
 ## Contacto
 
